@@ -1103,7 +1103,7 @@ let holdType,holdUsed;
 let bag,nextQueue;
 let score=0,level=1,linesCleared=0,startLevel=1;
 let bestScore=0;
-let gravityTimer,lastTime;
+let gravityTimer,lastTime=0;
 let lockTimer,lockResets,lockMax=15;
 let lockDelay=500;
 let gameState='start';
@@ -1327,7 +1327,7 @@ function initGame(){
   gsGravityScale=gsGravityScaleFor(gsDifficulty);
   startLevel=Math.max(1,Math.min(15,settings.startLevel||1));
   score=0;displayScore=0;targetScore=0;level=startLevel;linesCleared=0;
-  gravityTimer=0;lastTime=null;
+  gravityTimer=0;lastTime=0;
   lockTimer=null;lockResets=0;
   flashCells=[];clearFlash=0;clearRows=[];hardDropTrail=[];levelFlash=0;scoreFloats=[];
   updateHUD();spawnNext();gameState='playing';
@@ -1343,7 +1343,7 @@ function doHold(){
 // ─── GRAVITY + GAME LOOP ──────────────────────────────────────────────────────
 function gameLoop(ts){
   if(gameState==='playing'){
-    if(lastTime===null)lastTime=ts;
+    if(!lastTime)lastTime=ts;
     const dt=ts-lastTime;lastTime=ts;
     if(currentType){
       gravityTimer+=dt;
@@ -1369,7 +1369,7 @@ function gameLoop(ts){
     hardDropTrail=hardDropTrail.map(p=>({...p,t:p.t-dt})).filter(p=>p.t>0);
     scoreFloats=scoreFloats.map(p=>({...p,t:p.t-dt})).filter(p=>p.t>0);
     if(displayScore<targetScore){displayScore=Math.min(targetScore,displayScore+Math.ceil((targetScore-displayScore)/5));updateScoreDisplayAnim();}
-  } else {lastTime=null;}
+  } else {lastTime=0;}
   requestAnimationFrame(gameLoop);
   try{render();}catch(err){console.error('render error',err);}
 }
@@ -1745,7 +1745,7 @@ function togglePause(){
     showScreen('pauseScreen');
   } else if(gameState==='paused'){
     gameState='playing';
-    lastTime=null;gravityTimer=0;
+    lastTime=0;gravityTimer=0;
     showScreen('gameWrap');
     if(!settings.muted&&getMusicVol()>0.001)startMusic();
   }

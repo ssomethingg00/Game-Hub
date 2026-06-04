@@ -439,20 +439,41 @@
 
   /* RESPONSIVE */
   @media (max-width: 600px) {
-    :root { --cell-size: 32px; --cell-font: 12px; }
     .game-area { padding: 0 6px; }
-    .word-list-panel { max-width: 100%; width: 100%; }
-    .controls-bar { padding: 0 6px 8px; }
-    header { padding: 10px 10px 8px; }
-    .logo { font-size: 1.2rem; }
+    .word-list-panel { max-width: 100%; width: 100%; padding: 10px 12px; }
+    .word-list-panel h3 { margin-bottom: 6px; }
+    #wordList { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 6px; }
+    #wordList li { font-size: 0.8rem; padding: 4px 8px; }
+    .controls-bar { padding: 0 6px 8px; margin-bottom: 4px; }
+    header { padding: 8px 10px 6px; }
+    .logo { font-size: 1.1rem; }
     .tab-btn { padding: 4px 8px; font-size: 0.72rem; }
+    .hud-chip { padding: 3px 10px; font-size: 0.75rem; }
+    .new-btn { padding: 6px 14px; font-size: 0.8rem; }
   }
-  @media (max-width: 420px) { :root { --cell-size: 28px; --cell-font: 11px; } }
-  @media (max-width: 360px) { :root { --cell-size: 25px; --cell-font: 10px; } }
 
-  body.difficulty-hard { --cell-size: 30px; --cell-font: 11px; }
-  @media (max-width: 600px) { body.difficulty-hard { --cell-size: 24px; --cell-font: 9px; } }
-  @media (max-width: 420px) { body.difficulty-hard { --cell-size: 20px; --cell-font: 8.5px; } }
+  /* Difficulty-specific sizing systems to ensure perfect grid layout on all screens */
+  body.difficulty-easy   { --cell-size: 36px; --cell-font: 14px; }
+  body.difficulty-medium { --cell-size: 32px; --cell-font: 13px; }
+  body.difficulty-hard   { --cell-size: 28px; --cell-font: 11px; }
+
+  @media (max-width: 600px) {
+    body.difficulty-easy   { --cell-size: 32px; --cell-font: 12px; }
+    body.difficulty-medium { --cell-size: 25px; --cell-font: 10px; }
+    body.difficulty-hard   { --cell-size: 22px; --cell-font: 9px; }
+  }
+
+  @media (max-width: 420px) {
+    body.difficulty-easy   { --cell-size: 28px; --cell-font: 11px; }
+    body.difficulty-medium { --cell-size: 23px; --cell-font: 9.5px; }
+    body.difficulty-hard   { --cell-size: 18px; --cell-font: 8px; }
+  }
+
+  @media (max-width: 360px) {
+    body.difficulty-easy   { --cell-size: 25px; --cell-font: 10px; }
+    body.difficulty-medium { --cell-size: 20px; --cell-font: 8.5px; }
+    body.difficulty-hard   { --cell-size: 15px; --cell-font: 7px; }
+  }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }

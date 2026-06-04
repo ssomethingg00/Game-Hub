@@ -1381,7 +1381,7 @@
   <div class="how-to-play" id="howToPlay">
     <h3>How to Play</h3>
     <p>A card is shown. Guess whether the <strong>next card</strong> will be <strong>HIGHER ↑</strong> or <strong>LOWER ↓</strong>.</p>
-    <p style="margin-top:8px">Cards rank: <strong>2 3 4 5 6 7 8 9 10 J Q K A</strong> (Ace is highest).</p>
+    <p style="margin-top:8px" id="cardRankText">Cards rank: <strong>2 3 4 5 6 7 8 9 10 J Q K A</strong> (Ace is highest).</p>
     <p style="margin-top:8px"><span class="rule-tie">Same rank = PUSH (tie) — you keep your streak!</span></p>
     <p style="margin-top:8px">Each correct guess builds your streak and raises the score multiplier. In <strong>Classic</strong> you get <strong>3 chances</strong> — a wrong guess costs one and resets your streak, but your score keeps climbing.</p>
     <p style="margin-top:8px">In <strong>Bet Mode</strong>, wager chips and <strong>Cash Out</strong> before risking it all!</p>
@@ -1577,6 +1577,10 @@
       <label class="toggle-switch"><input type="checkbox" id="settingsMute"><span class="toggle-slider"></span></label>
     </div>
     <div class="setting-row">
+      <div><div class="setting-label">Ace is High (14)</div><div class="setting-sub">Turn off to make Ace Low (1)</div></div>
+      <label class="toggle-switch"><input type="checkbox" id="settingsAceHigh"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="setting-row">
       <div><div class="setting-label">Volume</div></div>
       <input type="range" class="vol-slider" id="settingsVol" min="0" max="1" step="0.05" value="0.8">
     </div>
@@ -1749,6 +1753,7 @@ let bestScore = 0;
 let tutorialStep = 0;
 let tutorialActive = false;
 let firstPlay = true;
+let aceIsHigh = true;
 let audioCtx = null;
 let masterGain = null;
 // Per-round context for achievements
@@ -1766,6 +1771,8 @@ function loadStorage() {
   isMuted = lsGet('muted', '0') === '1';
   volume = parseFloat(lsGet('volume', '0.8'));
   firstPlay = lsGet('firstPlay', '1') !== '0';
+  aceIsHigh = lsGet('aceIsHigh', '1') !== '0';
+  RANK_VALUES['A'] = aceIsHigh ? 14 : 1;
 
   const lastBonus = lsGet('lastBonus', '');
   const today = new Date().toDateString();
@@ -1786,6 +1793,7 @@ function saveStorage() {
   lsSet('muted', isMuted ? '1' : '0');
   lsSet('volume', volume);
   lsSet('firstPlay', '0');
+  lsSet('aceIsHigh', aceIsHigh ? '1' : '0');
   lsSet('saveVersion', String(SAVE_VERSION));
 }
 
@@ -2106,8 +2114,10 @@ function updateProbHint() {
   if (!el || !currentCard) { if(el) el.textContent = ''; return; }
   const v = currentCard.value;
   const total = deck.length + discardPile.length + 1;
-  const higher = (14 - v) * 4;
-  const lower = (v - 2) * 4;
+  const maxVal = aceIsHigh ? 14 : 13;
+  const minVal = aceIsHigh ? 2 : 1;
+  const higher = (maxVal - v) * 4;
+  const lower = (v - minVal) * 4;
   const pHigh = Math.max(0, Math.min(100, Math.round(higher / total * 100)));
   const pLow = Math.max(0, Math.min(100, Math.round(lower / total * 100)));
   el.textContent = `↑ ~${pHigh}%  ·  ↓ ~${pLow}%  ·  = ~${Math.max(0,100-pHigh-pLow)}%`;
@@ -2657,6 +2667,7 @@ document.getElementById('profileBtn').addEventListener('click', openProfile);
 // ---- Settings ----
 function openSettings() {
   document.getElementById('settingsMute').checked = isMuted;
+  document.getElementById('settingsAceHigh').checked = aceIsHigh;
   document.getElementById('settingsVol').value = volume;
   document.getElementById('settingsBestStreak').textContent = bestStreak;
   document.getElementById('settingsBestScore').textContent = bestScore;
@@ -2673,6 +2684,15 @@ document.getElementById('settingsMute').addEventListener('change', (e) => {
   saveStorage();
   updateAllMuteBtns();
   updateMasterVolume();
+});
+
+document.getElementById('settingsAceHigh').addEventListener('change', (e) => {
+  aceIsHigh = e.target.checked;
+  RANK_VALUES['A'] = aceIsHigh ? 14 : 1;
+  saveStorage();
+  updateDeckCardValues();
+  updateProbHint();
+  updateRuleText();
 });
 
 document.getElementById('settingsVol').addEventListener('input', (e) => {
@@ -2824,6 +2844,29 @@ if (window.GameShell && window.GameShell.onHint) {
   window.GameShell.onHint(gsHigherLowerHint);
 }
 
+function updateDeckCardValues() {
+  const aceVal = aceIsHigh ? 14 : 1;
+  deck.forEach(c => {
+    if (c.rank === 'A') c.value = aceVal;
+  });
+  discardPile.forEach(c => {
+    if (c.rank === 'A') c.value = aceVal;
+  });
+  if (currentCard && currentCard.rank === 'A') currentCard.value = aceVal;
+  if (nextCard && nextCard.rank === 'A') nextCard.value = aceVal;
+}
+
+function updateRuleText() {
+  const el = document.getElementById('cardRankText');
+  if (el) {
+    if (aceIsHigh) {
+      el.innerHTML = `Cards rank: <strong>2 3 4 5 6 7 8 9 10 J Q K A</strong> (Ace is highest).`;
+    } else {
+      el.innerHTML = `Cards rank: <strong>A 2 3 4 5 6 7 8 9 10 J Q K</strong> (Ace is lowest).`;
+    }
+  }
+}
+
 // ---- Boot ----
 function init() {
   loadStorage();
@@ -2832,6 +2875,7 @@ function init() {
   loadAchs();
   updateAllMuteBtns();
   updateTitleBests();
+  updateRuleText();
   showScreen('screen-title');
 }
 

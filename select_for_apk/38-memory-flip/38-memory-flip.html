@@ -260,6 +260,8 @@
   .card-outer {
     cursor: pointer;
     touch-action: manipulation;
+    perspective: 800px;
+    -webkit-perspective: 800px;
   }
   .card-outer:focus-visible {
     outline: 3px solid var(--gold);
@@ -296,6 +298,8 @@
   .back {
     background: var(--card-back1);
     overflow: hidden;
+    transform: translateZ(1px);
+    -webkit-transform: translateZ(1px);
   }
   .back::before {
     content: '';
@@ -307,26 +311,26 @@
         45deg,
         transparent,
         transparent 5px,
-        rgba(255,255,255,0.04) 5px,
-        rgba(255,255,255,0.04) 6px
+        rgba(255,255,255,0.12) 5px,
+        rgba(255,255,255,0.12) 6px
       ),
       repeating-linear-gradient(
         -45deg,
         transparent,
         transparent 5px,
-        rgba(255,255,255,0.04) 5px,
-        rgba(255,255,255,0.04) 6px
+        rgba(255,255,255,0.12) 5px,
+        rgba(255,255,255,0.12) 6px
       ),
       var(--card-back2);
     border: 1px solid rgba(212,184,122,0.4);
   }
   .back::after {
-    content: '♠';
+    content: '♠\fe0e';
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     font-size: 1.6em;
-    color: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.18);
     pointer-events: none;
   }
 
@@ -334,12 +338,12 @@
   .face {
     background: var(--card-bg);
     border: 2px solid var(--card-border);
-    transform: rotateY(180deg);
-    -webkit-transform: rotateY(180deg);
+    transform: rotateY(180deg) translateZ(1px);
+    -webkit-transform: rotateY(180deg) translateZ(1px);
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 4px;
+    padding: 0.35em;
     overflow: hidden;
   }
   .face.red { --suit-color: var(--red); }
@@ -348,17 +352,18 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    align-self: flex-start;
     line-height: 1;
     color: var(--suit-color);
   }
-  .card-corner .cr { font-size: clamp(0.6rem, 2vw, 0.9rem); font-weight: bold; }
-  .card-corner .cs { font-size: clamp(0.5rem, 1.6vw, 0.75rem); }
+  .card-corner .cr { font-size: 1.1em; font-weight: bold; }
+  .card-corner .cs { font-size: 0.9em; margin-top: 0.1em; }
   .corner-br { align-self: flex-end; transform: rotate(180deg); }
   .card-center {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    font-size: clamp(1.2rem, 4.5vw, 2rem);
+    font-size: 2.2em;
     color: var(--suit-color);
     text-align: center;
     pointer-events: none;
@@ -1297,7 +1302,7 @@
     <div id="title-wrap">
       <span id="game-title">Memory Flip</span>
       <span id="suits-deco">
-        <span class="suit-b">♠</span><span class="suit-r">♥</span><span class="suit-b">♣</span><span class="suit-r">♦</span>
+        <span class="suit-b">♠&#xFE0E;</span><span class="suit-r">♥&#xFE0E;</span><span class="suit-b">♣&#xFE0E;</span><span class="suit-r">♦&#xFE0E;</span>
       </span>
     </div>
     <button id="btn-profile" title="Player Profile" aria-label="Player Profile">👤</button>
@@ -1321,7 +1326,7 @@
     <ul>
       <li>Click any face-down card to flip it.</li>
       <li>Then click a second card — if they share the same <strong>rank</strong> and <strong>color</strong>
-        (e.g. <span class="suit-r-inline">7♥ + 7♦</span>, or <strong>K♠ + K♣</strong>), they stay face-up.</li>
+        (e.g. <span class="suit-r-inline">7♥&#xFE0E; + 7♦&#xFE0E;</span>, or <strong>K♠&#xFE0E; + K♣&#xFE0E;</strong>), they stay face-up.</li>
       <li>If they don't match, they flip back — remember where they are!</li>
       <li>Clear the whole board as quickly as possible with as few moves as possible.</li>
       <li>Beat your <strong>personal best</strong> score on each difficulty.</li>
@@ -1542,8 +1547,8 @@ function unlockAchievement(id) {
 const RANKS  = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 const ALL_PAIRS = [];
 for (const rank of RANKS) {
-  ALL_PAIRS.push({ rank, suits: [{sym:'♠',color:'black'},{sym:'♣',color:'black'}], color:'black' });
-  ALL_PAIRS.push({ rank, suits: [{sym:'♥',color:'red'  },{sym:'♦',color:'red'  }], color:'red'   });
+  ALL_PAIRS.push({ rank, suits: [{sym:'♠\ufe0e',color:'black'},{sym:'♣\ufe0e',color:'black'}], color:'black' });
+  ALL_PAIRS.push({ rank, suits: [{sym:'♥\ufe0e',color:'red'  },{sym:'♦\ufe0e',color:'red'  }], color:'red'   });
 }
 
 // ─── Difficulty Config ────────────────────────────────────────────
@@ -1735,6 +1740,7 @@ function renderGrid() {
     outer.className = 'card-outer' + (card.flipped || card.matched ? ' flipped' : '') + (card.matched ? ' matched' : '');
     outer.style.width  = `${cw}px`;
     outer.style.height = `${ch}px`;
+    outer.style.fontSize = `${Math.max(10, Math.floor(cw * 0.135))}px`;
     outer.style.animationDelay = `${idx * 28}ms`;
     outer.dataset.idx = idx;
     outer.dataset.col = idx % cfg.cols;

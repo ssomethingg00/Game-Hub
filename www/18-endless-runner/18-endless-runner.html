@@ -1114,7 +1114,9 @@ let tutorialMode = false;
 let tutorialZoneEnd = 0;
 
 function spawnObstacle(x, sc, speed) {
-  if (tutorialMode && x < tutorialZoneEnd) return; // warm-up gap
+  const gap = getMinGap(speed) + Math.random() * 260;
+  nextObstacleX = LW + gap;
+  if (tutorialMode && sc < 60) return; // warm-up gap
   // GameShell difficulty scales bird (flying-obstacle) frequency (normal => *1.0).
   const flyChance = sc < 300 ? 0 : Math.min(0.38, (0.1 + (sc - 300) / 4000) * gsDiff.flyMul);
   if (Math.random() < flyChance) {
@@ -1130,8 +1132,6 @@ function spawnObstacle(x, sc, speed) {
     const def = CACTUS_DEFS[Math.floor(Math.random() * CACTUS_DEFS.length)];
     obstacles.push({ type:'cactus', x, y: GROUND_Y, def });
   }
-  const gap = getMinGap(speed) + Math.random() * 260;
-  nextObstacleX = LW + gap;
 }
 
 function obstacleHitbox(ob) {

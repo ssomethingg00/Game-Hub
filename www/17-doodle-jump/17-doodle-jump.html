@@ -30,15 +30,18 @@
   }
   #touchLeft, #touchRight {
     position: absolute;
-    top: 0;
+    bottom: 0;
     width: 50%;
-    height: 100%;
+    height: 20.3%;
     opacity: 0;
-    pointer-events: auto;
+    pointer-events: none;
     z-index: 10;
   }
   #touchLeft { left: 0; }
   #touchRight { right: 0; }
+  .playing #touchLeft, .playing #touchRight {
+    pointer-events: auto;
+  }
   /* Achievement toast */
   #achievementToast {
     position: fixed;
@@ -850,7 +853,10 @@ function requestTilt() {
 // Auto-pause on tab blur
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    if (gameState === 'play') gameState = 'pause';
+    if (gameState === 'play') {
+      gameState = 'pause';
+      document.getElementById('gameContainer').classList.remove('playing');
+    }
     autosave();
   }
 });
@@ -984,6 +990,7 @@ if (window.GameShell && window.GameShell.onDifficulty) {
 // ─── Init / Restart ───────────────────────────────────────────────────────────
 function startGame() {
   gameState = 'play';
+  document.getElementById('gameContainer').classList.add('playing');
   // GameShell: lock in the chosen difficulty for this run + refill hints.
   applyGsDifficulty();
   if (window.GameShell && window.GameShell.newGame) window.GameShell.newGame();
@@ -1388,6 +1395,7 @@ function dieFromEnemy() {
   spawnParticles(player.x + PLAYER_W/2, player.y + PLAYER_H/2, 16, '#ff4444', 5);
   triggerShake(8);
   gameState = 'over';
+  document.getElementById('gameContainer').classList.remove('playing');
   endGameStats();
 }
 
@@ -1395,6 +1403,7 @@ function die() {
   SFX.gameover();
   triggerShake(6);
   gameState = 'over';
+  document.getElementById('gameContainer').classList.remove('playing');
   endGameStats();
 }
 
@@ -1410,8 +1419,15 @@ function endGameStats() {
 }
 
 function togglePause() {
-  if (gameState === 'play') { gameState = 'pause'; autosave(); }
-  else if (gameState === 'pause') gameState = 'play';
+  if (gameState === 'play') {
+    gameState = 'pause';
+    autosave();
+    document.getElementById('gameContainer').classList.remove('playing');
+  }
+  else if (gameState === 'pause') {
+    gameState = 'play';
+    document.getElementById('gameContainer').classList.add('playing');
+  }
 }
 
 // ─── Draw helpers ─────────────────────────────────────────────────────────────
