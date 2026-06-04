@@ -1,0 +1,2510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LexiGuess — Daily Word Puzzle</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --text: #1a1a1b;
+    --subtext: #787c7e;
+    --tile-border-empty: #d3d6da;
+    --tile-border-filled: #878a8c;
+    --tile-bg: #ffffff;
+    --tile-text: #1a1a1b;
+    --key-bg: #d3d6da;
+    --key-text: #1a1a1b;
+    --header-border: #d3d6da;
+    --modal-bg: #ffffff;
+    --modal-overlay: rgba(0,0,0,0.5);
+    --toast-bg: #1a1a1b;
+    --toast-text: #ffffff;
+    --green: #6aaa64;
+    --yellow: #c9b458;
+    --gray: #787c7e;
+    --green-dark: #538d4e;
+    --yellow-dark: #b59f3b;
+    --gray-dark: #3a3a3c;
+    --correct: var(--green);
+    --present: var(--yellow);
+    --absent: var(--gray);
+    --bar-bg: #d3d6da;
+    --input-bg: #f5f5f5;
+    --btn-secondary: #d3d6da;
+  }
+  [data-dark="true"] {
+    --bg: #121213;
+    --text: #ffffff;
+    --subtext: #818384;
+    --tile-border-empty: #3a3a3c;
+    --tile-border-filled: #565758;
+    --tile-bg: #121213;
+    --tile-text: #ffffff;
+    --key-bg: #818384;
+    --key-text: #ffffff;
+    --header-border: #3a3a3c;
+    --modal-bg: #1a1a1b;
+    --toast-bg: #ffffff;
+    --toast-text: #1a1a1b;
+    --correct: var(--green-dark);
+    --present: var(--yellow-dark);
+    --absent: var(--gray-dark);
+    --bar-bg: #3a3a3c;
+    --input-bg: #2a2a2b;
+    --btn-secondary: #3a3a3c;
+  }
+  [data-colorblind="true"] {
+    --correct: #f5793a;
+    --present: #85c0f9;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  /* HEADER */
+  #header {
+    width: 100%;
+    max-width: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--header-border);
+    flex-shrink: 0;
+  }
+  #header-left, #header-right { display: flex; gap: 8px; }
+  .icon-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--text); padding: 4px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.2s;
+  }
+  .icon-btn:hover { opacity: 0.7; }
+  .icon-btn:focus-visible { outline: 2px solid var(--correct); outline-offset: 2px; }
+  .icon-btn svg { width: 24px; height: 24px; fill: currentColor; }
+  /* HINT BUTTON */
+  #hint-btn { position: relative; }
+  #hint-btn .hint-count {
+    position: absolute; top: -1px; right: -3px;
+    background: var(--correct); color: #fff;
+    font-size: 0.6rem; font-weight: 800; line-height: 1;
+    min-width: 15px; height: 15px; padding: 0 3px;
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 0 2px var(--bg);
+  }
+  #hint-btn.depleted { opacity: 0.4; }
+  #hint-btn.depleted .hint-count { background: var(--subtext); }
+  /* Settings action buttons */
+  .settings-link-btn {
+    padding: 8px 16px; border-radius: 4px; border: none; cursor: pointer;
+    background: var(--correct); color: #fff; font-weight: 700; font-size: 0.85rem;
+    flex-shrink: 0; transition: opacity 0.2s;
+  }
+  .settings-link-btn:hover { opacity: 0.85; }
+  #game-title {
+    font-size: 1.6rem; font-weight: 800; letter-spacing: 3px;
+    text-transform: uppercase; color: var(--text);
+  }
+  #mode-badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; background: var(--correct); color: #fff;
+    text-transform: uppercase; letter-spacing: 1px; margin-left: 4px;
+    align-self: center;
+  }
+  /* Keep the 6-icon header tidy on small phones */
+  @media (max-width: 430px) {
+    #header { padding: 8px 8px; }
+    #header-left, #header-right { gap: 2px; }
+    .icon-btn { padding: 3px; }
+    .icon-btn svg { width: 21px; height: 21px; }
+    #game-title { font-size: 1.2rem; letter-spacing: 1.5px; }
+    #mode-badge { font-size: 0.5rem; padding: 2px 5px; margin-left: 2px; }
+  }
+
+  /* TOAST */
+  #toast-container {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    z-index: 1000; pointer-events: none;
+  }
+  .toast {
+    background: var(--toast-bg); color: var(--toast-text);
+    padding: 10px 20px; border-radius: 6px;
+    font-weight: 700; font-size: 0.9rem;
+    animation: toastIn 0.15s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes toastIn { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+
+  /* GAME AREA */
+  #game-area {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: space-between;
+    padding: 10px 0 4px;
+    width: 100%; max-width: 500px;
+    overflow: hidden;
+  }
+
+  /* BOARD */
+  #board-container {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    width: 100%;
+  }
+  #board {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    gap: 5px;
+    width: min(350px, calc(100vw - 40px));
+    height: min(420px, calc(100vh - 300px));
+  }
+  .row {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+  }
+  .tile {
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.4rem, 5vw, 2rem);
+    font-weight: 800; text-transform: uppercase;
+    border: 2px solid var(--tile-border-empty);
+    background: var(--tile-bg); color: var(--tile-text);
+    user-select: none; position: relative;
+    transition: border-color 0.05s;
+    aspect-ratio: 1;
+  }
+  .tile[data-letter] { border-color: var(--tile-border-filled); }
+  .tile[data-state="correct"] { background: var(--correct); border-color: var(--correct); color: #fff; }
+  .tile[data-state="present"] { background: var(--present); border-color: var(--present); color: #fff; }
+  .tile[data-state="absent"]  { background: var(--absent);  border-color: var(--absent);  color: #fff; }
+
+  /* Animations */
+  @keyframes pop {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+  }
+  @keyframes flipIn {
+    0%   { transform: rotateX(0deg); }
+    100% { transform: rotateX(90deg); }
+  }
+  @keyframes flipOut {
+    0%   { transform: rotateX(90deg); }
+    100% { transform: rotateX(0deg); }
+  }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    20%      { transform: translateY(-20px); }
+    60%      { transform: translateY(-10px); }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    15%     { transform: translateX(-6px); }
+    30%     { transform: translateX(6px); }
+    45%     { transform: translateX(-4px); }
+    60%     { transform: translateX(4px); }
+    75%     { transform: translateX(-2px); }
+    90%     { transform: translateX(2px); }
+  }
+  @keyframes countUp {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  .tile.pop { animation: pop 0.1s ease-in-out; }
+  .tile.flip-in  { animation: flipIn  0.25s ease-in forwards; }
+  .tile.flip-out { animation: flipOut 0.25s ease-out forwards; }
+  .row.bounce .tile { animation: bounce 0.6s ease forwards; }
+  .row.shake { animation: shake 0.6s ease forwards; }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .tile.pop, .tile.flip-in, .tile.flip-out, .row.bounce .tile, .row.shake { animation: none !important; }
+    .tile, .key { transition: none !important; }
+  }
+
+  /* KEYBOARD */
+  #keyboard {
+    width: min(500px, 100vw);
+    padding: 0 8px 8px;
+    flex-shrink: 0;
+  }
+  .kb-row {
+    display: flex; gap: 6px; justify-content: center; margin-bottom: 6px;
+  }
+  .key {
+    height: 58px; min-width: 43px; flex: 1; max-width: 43px;
+    border: none; border-radius: 4px; cursor: pointer;
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    background: var(--key-bg); color: var(--key-text);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.3s, color 0.3s; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .key.wide { min-width: 65px; max-width: 65px; font-size: 0.75rem; }
+  .key[data-state="correct"] { background: var(--correct); color: #fff; }
+  .key[data-state="present"] { background: var(--present); color: #fff; }
+  .key[data-state="absent"]  { background: var(--absent);  color: #fff; }
+  .key[data-hint="true"] { box-shadow: inset 0 0 0 3px var(--correct); }
+  .key:active { filter: brightness(0.9); }
+  .key:focus-visible { outline: 2px solid var(--correct); outline-offset: 2px; }
+
+  /* COUNTDOWN */
+  #countdown-area {
+    text-align: center; padding: 6px; font-size: 0.85rem; color: var(--subtext);
+    display: none;
+  }
+  #countdown-area.visible { display: block; }
+  #countdown-time { font-size: 1.5rem; font-weight: 800; color: var(--text); }
+
+  /* NEW WORD BUTTON */
+  #new-word-btn {
+    display: none; margin: 6px auto;
+    padding: 12px 30px; border-radius: 4px;
+    background: var(--correct); color: #fff;
+    border: none; cursor: pointer; font-size: 1rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+    transition: opacity 0.2s;
+  }
+  #new-word-btn:hover { opacity: 0.85; }
+  #new-word-btn.visible { display: block; }
+
+  /* MODALS */
+  .modal-overlay {
+    position: fixed; inset: 0; background: var(--modal-overlay);
+    display: flex; align-items: flex-start; justify-content: center;
+    z-index: 500; padding-top: 60px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--modal-bg); color: var(--text);
+    border-radius: 10px; width: min(480px, calc(100vw - 32px));
+    max-height: calc(100vh - 80px); overflow-y: auto;
+    padding: 24px; position: relative;
+    transform: translateY(-20px); transition: transform 0.2s;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px;
+    background: none; border: none; cursor: pointer;
+    color: var(--subtext); font-size: 1.4rem; line-height: 1;
+    padding: 4px 8px;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-close:focus-visible { outline: 2px solid var(--correct); }
+  .modal h2 {
+    text-align: center; font-size: 1rem; font-weight: 800;
+    letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 18px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--header-border);
+  }
+
+  /* HOW TO PLAY */
+  .how-section { margin-bottom: 14px; font-size: 0.9rem; line-height: 1.6; }
+  .example-row { display: flex; gap: 5px; margin: 10px 0; }
+  .ex-tile {
+    width: 44px; height: 44px; border: 2px solid var(--tile-border-empty);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; font-weight: 800; text-transform: uppercase;
+    color: #fff;
+  }
+  .ex-tile.correct { background: var(--correct); border-color: var(--correct); }
+  .ex-tile.present { background: var(--present); border-color: var(--present); }
+  .ex-tile.absent  { background: var(--absent);  border-color: var(--absent); }
+  .ex-tile.neutral { background: none; color: var(--text); border-color: var(--tile-border-filled); }
+  .how-section p { margin-bottom: 6px; }
+  hr.modal-divider { border: none; border-top: 1px solid var(--header-border); margin: 14px 0; }
+
+  /* STATS MODAL */
+  .stats-row {
+    display: flex; justify-content: space-around; margin-bottom: 20px;
+  }
+  .stat-item { text-align: center; }
+  .stat-num { font-size: 2.2rem; font-weight: 800; animation: countUp 0.4s ease; }
+  .stat-label { font-size: 0.7rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.5px; }
+  #distribution { margin-bottom: 18px; }
+  #distribution h3 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .dist-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 0.85rem; }
+  .dist-num { width: 14px; text-align: right; font-weight: 700; }
+  .dist-bar-wrap { flex: 1; height: 24px; }
+  .dist-bar {
+    height: 100%; min-width: 24px; background: var(--bar-bg);
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 6px; font-size: 0.8rem; font-weight: 700; color: #fff;
+    transition: width 0.4s ease; border-radius: 2px;
+  }
+  .dist-bar.highlight { background: var(--correct); }
+  #stats-share-btn {
+    display: block; width: 100%; padding: 14px; border-radius: 4px;
+    background: var(--correct); color: #fff; border: none; cursor: pointer;
+    font-size: 1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 10px; transition: opacity 0.2s;
+  }
+  #stats-share-btn:hover { opacity: 0.85; }
+  #stats-countdown { text-align: center; font-size: 0.85rem; color: var(--subtext); }
+  #stats-countdown span { display: block; font-size: 1.4rem; font-weight: 800; color: var(--text); margin-top: 4px; }
+
+  /* SETTINGS MODAL */
+  .setting-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 0; border-bottom: 1px solid var(--header-border);
+    gap: 12px;
+  }
+  .setting-info { flex: 1; }
+  .setting-label { font-size: 0.95rem; font-weight: 600; }
+  .setting-desc  { font-size: 0.78rem; color: var(--subtext); margin-top: 2px; }
+  /* Toggle switch */
+  .toggle {
+    position: relative; width: 48px; height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: #ccc; border-radius: 26px; transition: 0.3s;
+  }
+  .slider:before {
+    content: ''; position: absolute;
+    height: 20px; width: 20px; left: 3px; bottom: 3px;
+    background: white; border-radius: 50%; transition: 0.3s;
+  }
+  input:checked + .slider { background: var(--correct); }
+  input:checked + .slider:before { transform: translateX(22px); }
+  .setting-row.disabled { opacity: 0.4; pointer-events: none; }
+  .credits { margin-top: 18px; text-align: center; font-size: 0.75rem; color: var(--subtext); }
+
+  /* Volume slider */
+  .vol-row { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .vol-row input[type=range] { flex: 1; accent-color: var(--correct); }
+  .vol-label { font-size: 0.75rem; color: var(--subtext); min-width: 30px; text-align: right; }
+
+  /* Reset button */
+  #reset-stats-btn {
+    width: 100%; padding: 10px; border-radius: 4px;
+    background: #e74c3c; color: #fff; border: none; cursor: pointer;
+    font-size: 0.9rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    margin-top: 14px; transition: opacity 0.2s;
+  }
+  #reset-stats-btn:hover { opacity: 0.85; }
+
+  /* PROFILE MODAL */
+  .profile-section { margin-bottom: 18px; }
+  .profile-section h3 { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; color: var(--subtext); }
+  .profile-name-wrap { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .profile-name-input {
+    flex: 1; padding: 10px 12px; border-radius: 6px;
+    border: 2px solid var(--tile-border-filled);
+    background: var(--input-bg); color: var(--text);
+    font-size: 1rem; font-weight: 600; outline: none;
+  }
+  .profile-name-input:focus { border-color: var(--correct); }
+  .profile-save-btn {
+    padding: 10px 18px; border-radius: 6px;
+    background: var(--correct); color: #fff; border: none; cursor: pointer;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  .profile-stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px;
+  }
+  .profile-stat { background: var(--input-bg); border-radius: 8px; padding: 12px 8px; text-align: center; }
+  .profile-stat-num { font-size: 1.6rem; font-weight: 800; color: var(--correct); }
+  .profile-stat-label { font-size: 0.65rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .profile-id { font-size: 0.7rem; color: var(--subtext); text-align: center; margin-top: 8px; }
+
+  /* ACHIEVEMENTS MODAL */
+  .ach-list { display: flex; flex-direction: column; gap: 10px; }
+  .ach-item {
+    display: flex; gap: 12px; align-items: center;
+    padding: 12px; border-radius: 8px;
+    background: var(--input-bg);
+    opacity: 0.5;
+    transition: opacity 0.3s;
+  }
+  .ach-item.unlocked { opacity: 1; }
+  .ach-icon { font-size: 1.8rem; flex-shrink: 0; width: 40px; text-align: center; }
+  .ach-info { flex: 1; }
+  .ach-name { font-size: 0.9rem; font-weight: 700; }
+  .ach-desc { font-size: 0.75rem; color: var(--subtext); margin-top: 2px; }
+  .ach-badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; background: var(--correct); color: #fff;
+    text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0;
+  }
+  .ach-item:not(.unlocked) .ach-badge { background: var(--bar-bg); color: var(--subtext); }
+
+  /* CONFETTI */
+  #confetti-canvas {
+    position: fixed; inset: 0; pointer-events: none; z-index: 200;
+  }
+
+  /* Scrollbar */
+  .modal::-webkit-scrollbar { width: 4px; }
+  .modal::-webkit-scrollbar-thumb { background: var(--bar-bg); border-radius: 2px; }
+
+  /* Screen-reader only */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+</style>
+
+<!--GAMESHELL_V1-->
+<script>window.GS_CONFIG={"id":"31-wordle","title":"Wordle","difficulties":["easy","normal","hard"],"howToPlay":"\u003cp>\u003cstrong>Goal:\u003c/strong> guess the 5-letter word.\u003c/p>\u003cul>\u003cli>\u003cstrong>Green\u003c/strong> = right letter, right spot.\u003c/li>\u003cli>\u003cstrong>Yellow\u003c/strong> = right letter, wrong spot.\u003c/li>\u003cli>\u003cstrong>Grey\u003c/strong> = not in the word.\u003c/li>\u003c/ul>","hints":["Open with a word rich in vowels and common letters.","Use your second guess to test new letters, not repeats.","Mind letters that can double (e.g. EE, LL)."]};</script>
+<script>
+/* ===========================================================================
+ * GameShell v1 — universal drop-in options overlay for single-file web games.
+ * Adds: Settings (Sound, Music, Difficulty, Theme, Leaderboard, How to Play,
+ * Reset) + an in-play control bar (Hint, Sound, Settings) with a rate-limited
+ * Hint (2 / 24h, refills on new game). Game-agnostic, namespaced, Shadow-DOM
+ * isolated, persisted per game. Safe to inject into any HTML game once.
+ * ======================================================================== */
+(function () {
+  "use strict";
+  if (window.__gsInstalled) return;
+  window.__gsInstalled = true;
+
+  /* ---------- per-game config (injected just above this script) ---------- */
+  var CFG = window.GS_CONFIG || {};
+  var GID = CFG.id || (location.pathname.split("/").filter(Boolean).pop() || "game").replace(/\.html?$/i, "");
+  var TITLE = CFG.title || document.title || "Game";
+  var DIFFS = (CFG.difficulties && CFG.difficulties.length) ? CFG.difficulties : ["easy", "normal", "hard"];
+  var HOWTO = CFG.howToPlay || "<p>Use the on-screen controls (or your keyboard) to play. Your progress is saved automatically on this device.</p>";
+  var TIPS = (CFG.hints && CFG.hints.length) ? CFG.hints.slice() : [
+    "Take your time — there's no rush.",
+    "Plan one move ahead before you commit.",
+    "Stuck? Try a new game from Settings to reset and get fresh hints."
+  ];
+  var HINT_MAX = CFG.hintMax || 2;
+  var WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  /* ----------------------------- storage --------------------------------- */
+  function k(name) { return "gs:" + GID + ":" + name; }
+  function load(name, def) {
+    try { var v = JSON.parse(localStorage.getItem(k(name))); return v == null ? def : v; }
+    catch (e) { return def; }
+  }
+  function save(name, val) { try { localStorage.setItem(k(name), JSON.stringify(val)); } catch (e) {} }
+
+  var SDEF = { v: 1, sound: true, music: true, difficulty: (DIFFS.indexOf("normal") >= 0 ? "normal" : DIFFS[0]), theme: "system" };
+  var settings = Object.assign({}, SDEF, load("settings", {}));
+  if (DIFFS.indexOf(settings.difficulty) < 0) settings.difficulty = SDEF.difficulty;
+  function persist() { save("settings", settings); }
+
+  /* ------------------------- tiny event emitter -------------------------- */
+  var subs = {};
+  function on(ev, fn) { (subs[ev] = subs[ev] || []).push(fn); return function () { subs[ev] = (subs[ev] || []).filter(function (f) { return f !== fn; }); }; }
+  function emit(ev, data) {
+    (subs[ev] || []).forEach(function (fn) { try { fn(data); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("gs:" + ev, { detail: data })); } catch (e) {}
+  }
+
+  /* ============================== AUDIO ================================== */
+  /* Sound = master (everything). Music = looping media + opt-in music gain. */
+  var soundOn = settings.sound, musicOn = settings.music;
+  var acRegistry = [];
+
+  (function patchWebAudio() {
+    var Orig = window.AudioContext || window.webkitAudioContext;
+    if (!Orig || Orig.__gsPatched) return;
+    function Patched() {
+      var ctx = arguments.length ? new Orig(arguments[0]) : new Orig();
+      try {
+        var realDest = ctx.destination;
+        var sfx = ctx.createGain(); sfx.connect(realDest);
+        var music = ctx.createGain(); music.connect(realDest);
+        sfx.gain.value = soundOn ? 1 : 0;
+        music.gain.value = (soundOn && musicOn) ? 1 : 0;
+        Object.defineProperty(ctx, "destination", { get: function () { return sfx; }, configurable: true });
+        ctx.__gsSfx = sfx; ctx.__gsMusic = music; ctx.__gsRealDest = realDest;
+        acRegistry.push(ctx);
+      } catch (e) {}
+      return ctx;
+    }
+    try { Patched.prototype = Orig.prototype; } catch (e) {}
+    Patched.__gsPatched = true;
+    try { window.AudioContext = Patched; } catch (e) {}
+    try { window.webkitAudioContext = Patched; } catch (e) {}
+  })();
+
+  var mediaEls = [];
+  (function patchMedia() {
+    if (!window.HTMLMediaElement || HTMLMediaElement.__gsPatched) return;
+    var proto = HTMLMediaElement.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "muted");
+    if (d && d.get && d.set) {
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get: function () { return (!soundOn) || (this.loop && !musicOn) || d.get.call(this); },
+        set: function (v) { try { d.set.call(this, v); } catch (e) {} }
+      });
+    }
+    var op = proto.play;
+    proto.play = function () {
+      if (mediaEls.indexOf(this) < 0) mediaEls.push(this);
+      try { this.volume = this.volume; } catch (e) {}
+      return op.apply(this, arguments);
+    };
+    HTMLMediaElement.__gsPatched = true;
+  })();
+
+  function applyAudio() {
+    acRegistry.forEach(function (ctx) {
+      try {
+        if (ctx.__gsSfx) ctx.__gsSfx.gain.setValueAtTime(soundOn ? 1 : 0, ctx.currentTime);
+        if (ctx.__gsMusic) ctx.__gsMusic.gain.setValueAtTime((soundOn && musicOn) ? 1 : 0, ctx.currentTime);
+      } catch (e) {}
+    });
+    mediaEls.forEach(function (el) { try { el.muted = el.muted; } catch (e) {} });
+  }
+
+  /* ============================== THEME ================================== */
+  function applyTheme() {
+    var t = settings.theme;
+    var root = document.documentElement;
+    root.classList.remove("gs-theme-light", "gs-theme-dark", "gs-theme-system");
+    root.classList.add("gs-theme-" + t);
+    var eff = t;
+    if (t === "system") {
+      eff = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    try { root.style.colorScheme = (t === "system") ? "light dark" : t; } catch (e) {}
+    var bd = document.getElementById("gs-backdrop");
+    if (bd) bd.style.background = (eff === "dark") ? "#0e1014" : "#eef1f6";
+    if (host) host.setAttribute("data-theme", eff);
+    emit("theme", { theme: t, effective: eff });
+  }
+  if (window.matchMedia) {
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (settings.theme === "system") applyTheme(); }); }
+    catch (e) {}
+  }
+
+  /* ============================== HINTS ================================== */
+  function hintState() {
+    var s = load("hint", { v: 1, spentAt: [], puzzleId: "", lastSeen: Date.now() });
+    var now = Date.now();
+    // anti-tamper: clamp future stamps; ignore large backward clock jumps
+    if (s.lastSeen && now < s.lastSeen - 60000) { s.spentAt = (s.spentAt || []).map(function () { return now; }); }
+    s.spentAt = (s.spentAt || []).map(function (t) { return t > now ? now : t; }).filter(function (t) { return now - t < WINDOW_MS; });
+    s.lastSeen = now;
+    return s;
+  }
+  function hintsLeft() { var s = hintState(); save("hint", s); return Math.max(0, HINT_MAX - s.spentAt.length); }
+  function nextHintMs() {
+    var s = hintState();
+    if (s.spentAt.length < HINT_MAX) return 0;
+    var oldest = Math.min.apply(null, s.spentAt);
+    return Math.max(0, WINDOW_MS - (Date.now() - oldest));
+  }
+  function spendHint() {
+    var s = hintState();
+    if (HINT_MAX - s.spentAt.length <= 0) return false;
+    s.spentAt.push(Date.now()); save("hint", s); return true;
+  }
+  function refillHints(puzzleId) {
+    var s = hintState();
+    if (puzzleId != null && String(puzzleId) === String(s.puzzleId)) { save("hint", s); return; } // same board: no mint
+    s.spentAt = []; s.puzzleId = (puzzleId == null ? "" : String(puzzleId)); save("hint", s);
+    updateHintBadge();
+  }
+  var tipIdx = 0;
+  function provideHintText() {
+    if (typeof CFG.onHint === "function") { try { var r = CFG.onHint(); if (r) return String(r); } catch (e) {} }
+    var t = TIPS[tipIdx % TIPS.length]; tipIdx++; return t;
+  }
+
+  /* ============================ LEADERBOARD ============================= */
+  function getBoard(diff) { var b = load("scores", { v: 1, boards: {} }); return (b.boards && b.boards[diff]) || []; }
+  function submitScore(score, opts) {
+    score = Number(score); if (!isFinite(score)) return;
+    opts = opts || {};
+    var diff = opts.difficulty || settings.difficulty;
+    var name = (opts.name || "You").toString().slice(0, 12);
+    var b = load("scores", { v: 1, boards: {} }); b.boards = b.boards || {};
+    var list = b.boards[diff] || [];
+    list.push({ name: name, score: score, ts: Date.now() });
+    list.sort(function (a, c) { return c.score - a.score; });
+    b.boards[diff] = list.slice(0, 10);
+    save("scores", b);
+    emit("score", { score: score, difficulty: diff });
+    return b.boards[diff];
+  }
+
+  /* ============================== UI SHELL ============================== */
+  var host, root, $bar, $hintBtn, $soundBtn, $modal, $panelHost;
+  var lastFocus = null;
+
+  var CSS = ''
+    + ':host{all:initial}'
+    + '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}'
+    + '.bar{position:fixed;top:0;right:0;display:flex;gap:6px;padding:8px;'
+    + 'padding-top:max(8px,env(safe-area-inset-top));padding-right:max(8px,env(safe-area-inset-right));z-index:5}'
+    + '.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;'
+    + 'min-width:44px;min-height:44px;width:44px;height:44px;border-radius:12px;font-size:20px;line-height:1;'
+    + 'background:var(--c-btn);color:var(--c-tx);box-shadow:0 2px 8px rgba(0,0,0,.25);'
+    + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;transition:transform .08s,background .15s}'
+    + '.btn:hover{background:var(--c-btnH)}.btn:active{transform:scale(.92)}'
+    + '.btn:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;'
+    + 'background:var(--c-acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.btn.off{opacity:.45}'
+    + '.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:10;'
+    + 'padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}'
+    + '.scrim.open{display:flex}'
+    + '.modal{width:min(420px,100%);max-height:88vh;overflow:auto;background:var(--c-bg);color:var(--c-tx);'
+    + 'border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:18px;-webkit-overflow-scrolling:touch}'
+    + '.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+    + '.mtitle{font-size:18px;font-weight:800;letter-spacing:.2px}'
+    + '.x{all:unset;cursor:pointer;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--c-tx)}'
+    + '.x:hover{background:var(--c-btn)}.x:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.sub{font-size:12px;color:var(--c-mut);margin:-2px 0 12px}'
+    + '.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-top:1px solid var(--c-line)}'
+    + '.row .lab{font-size:15px;font-weight:600}.row .desc{font-size:12px;color:var(--c-mut);margin-top:2px}'
+    + '.seg{display:flex;gap:4px;background:var(--c-btn);padding:4px;border-radius:12px}'
+    + '.seg button{all:unset;cursor:pointer;padding:8px 12px;min-height:36px;border-radius:9px;font-size:13px;font-weight:600;color:var(--c-mut);touch-action:manipulation}'
+    + '.seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.seg button:focus-visible{outline:2px solid var(--c-acc)}'
+    + '.sw{all:unset;cursor:pointer;width:52px;height:30px;border-radius:16px;background:var(--c-line);position:relative;transition:background .15s;flex:0 0 auto}'
+    + '.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}'
+    + '.sw[aria-checked=true]{background:var(--c-acc)}.sw[aria-checked=true]::after{left:25px}'
+    + '.sw:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.lbtn{all:unset;cursor:pointer;display:block;width:100%;text-align:left;padding:13px 12px;margin-top:8px;border-radius:12px;'
+    + 'background:var(--c-btn);color:var(--c-tx);font-size:15px;font-weight:600;touch-action:manipulation}'
+    + '.lbtn:hover{background:var(--c-btnH)}.lbtn:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.lbtn.danger{color:#ff6b6b}'
+    + '.back{all:unset;cursor:pointer;font-size:14px;color:var(--c-acc);font-weight:700;margin-bottom:8px;display:inline-flex;gap:4px;align-items:center}'
+    + '.howto{font-size:14px;line-height:1.6}.howto p{margin:8px 0}.howto strong{color:var(--c-acc)}'
+    + '.howto ul{margin:8px 0;padding-left:20px}.howto li{margin:4px 0}'
+    + '.lbtabs{display:flex;gap:6px;margin:6px 0 10px}'
+    + '.lbtabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--c-btn);font-size:13px;font-weight:600;color:var(--c-mut)}'
+    + '.lbtabs button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.lblist{list-style:none;margin:0;padding:0}'
+    + '.lblist li{display:flex;justify-content:space-between;padding:9px 6px;border-top:1px solid var(--c-line);font-size:14px}'
+    + '.lblist li span:first-child{color:var(--c-mut)}'
+    + '.empty{color:var(--c-mut);font-size:14px;text-align:center;padding:18px}'
+    + '.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'background:var(--c-bg);color:var(--c-tx);border:1px solid var(--c-line);padding:12px 16px;border-radius:12px;'
+    + 'max-width:86vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
+    + ':host([data-theme=dark]){--c-bg:#171a21;--c-tx:#f2f4f8;--c-mut:#9aa3b2;--c-line:#2c313c;--c-btn:#222732;--c-btnH:#2c333f;--c-acc:#4f8cff}'
+    + ':host([data-theme=light]){--c-bg:#ffffff;--c-tx:#15181f;--c-mut:#646b7a;--c-line:#e6e8ee;--c-btn:#eef1f6;--c-btnH:#e3e7ef;--c-acc:#2f6bff}'
+    + '@media (prefers-reduced-motion: reduce){*{transition:none!important}}';
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function buildUI() {
+    // backdrop (light DOM, behind everything)
+    var bd = el("div", { id: "gs-backdrop" });
+    bd.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none";
+    document.body.appendChild(bd);
+
+    host = el("div", { id: "gs-host" });
+    host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;isolation:isolate";
+    document.body.appendChild(host);
+    root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    var style = el("style"); style.textContent = CSS; root.appendChild(style);
+
+    // ---- in-play control bar: Hint · Sound · Settings ----
+    $bar = el("div", { class: "bar" });
+    $hintBtn = el("button", { class: "btn", "aria-label": "Hint", title: "Hint" }, "💡");
+    $hintBtn.appendChild(el("span", { class: "badge" }, String(HINT_MAX)));
+    $soundBtn = el("button", { class: "btn", "aria-label": "Toggle sound", title: "Sound" }, "🔊");
+    var $setBtn = el("button", { class: "btn", "aria-label": "Settings", title: "Settings" }, "⚙️");
+    $bar.appendChild($hintBtn); $bar.appendChild($soundBtn); $bar.appendChild($setBtn);
+    root.appendChild($bar);
+
+    // ---- modal scrim + container ----
+    $modal = el("div", { class: "scrim", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
+    $panelHost = el("div", { class: "modal" });
+    $modal.appendChild($panelHost);
+    root.appendChild($modal);
+
+    $hintBtn.addEventListener("click", doHint);
+    $soundBtn.addEventListener("click", function () { setSound(!soundOn); });
+    $setBtn.addEventListener("click", openSettings);
+    $modal.addEventListener("click", function (e) { if (e.target === $modal) closeModal(); });
+    root.addEventListener("keydown", function (e) { if (e.key === "Escape" && $modal.classList.contains("open")) closeModal(); trapFocus(e); });
+
+    updateSoundBtn(); updateHintBadge();
+  }
+
+  function updateSoundBtn() { if ($soundBtn) { $soundBtn.textContent = soundOn ? "🔊" : "🔇"; $soundBtn.classList.toggle("off", !soundOn); } }
+  function updateHintBadge() {
+    if (!$hintBtn) return;
+    var left = hintsLeft();
+    var b = $hintBtn.querySelector(".badge");
+    if (b) b.textContent = String(left);
+    $hintBtn.classList.toggle("off", left === 0);
+  }
+
+  /* ----------------------------- panels --------------------------------- */
+  function openModal(render) {
+    lastFocus = document.activeElement;
+    render();
+    $modal.classList.add("open");
+    var f = $panelHost.querySelector("button,[tabindex],input"); if (f) f.focus();
+  }
+  function closeModal() {
+    $modal.classList.remove("open");
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  }
+  function trapFocus(e) {
+    if (e.key !== "Tab" || !$modal.classList.contains("open")) return;
+    var f = $panelHost.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function header(title, withBack) {
+    var h = el("div", { class: "mhead" });
+    var left = el("div");
+    if (withBack) { var b = el("button", { class: "back", "aria-label": "Back to settings" }, "‹ Back"); b.addEventListener("click", openSettings); left.appendChild(b); }
+    left.appendChild(el("div", { class: "mtitle" }, title));
+    var x = el("button", { class: "x", "aria-label": "Close" }, "✕"); x.addEventListener("click", closeModal);
+    h.appendChild(left); h.appendChild(x); return h;
+  }
+
+  function renderSettings() {
+    $panelHost.innerHTML = "";
+    $panelHost.setAttribute("aria-label", "Settings");
+    $panelHost.appendChild(header("Settings"));
+    $panelHost.appendChild(el("div", { class: "sub" }, TITLE));
+
+    // Sound
+    $panelHost.appendChild(toggleRow("Sound", "All game audio", soundOn, function (v) { setSound(v); }));
+    // Music
+    $panelHost.appendChild(toggleRow("Music", "Background music only", musicOn, function (v) { setMusic(v); }));
+
+    // Difficulty
+    var dr = el("div", { class: "row" });
+    var dl = el("div"); dl.appendChild(el("div", { class: "lab" }, "Difficulty"));
+    dl.appendChild(el("div", { class: "desc" }, "Applies on your next new game"));
+    dr.appendChild(dl);
+    dr.appendChild(segment(DIFFS.map(cap), DIFFS.indexOf(settings.difficulty), function (i) {
+      settings.difficulty = DIFFS[i]; persist(); emit("difficulty", { difficulty: settings.difficulty });
+    }));
+    $panelHost.appendChild(dr);
+
+    // Theme
+    var tr = el("div", { class: "row" });
+    var tl = el("div"); tl.appendChild(el("div", { class: "lab" }, "Theme"));
+    tl.appendChild(el("div", { class: "desc" }, "System · Light · Dark"));
+    tr.appendChild(tl);
+    var TH = ["system", "light", "dark"];
+    tr.appendChild(segment(["System", "Light", "Dark"], TH.indexOf(settings.theme), function (i) {
+      settings.theme = TH[i]; persist(); applyTheme();
+    }));
+    $panelHost.appendChild(tr);
+
+    // Leaderboard / How to Play / Reset
+    var lb = el("button", { class: "lbtn" }, "🏆  Leaderboard"); lb.addEventListener("click", function () { openModal(renderLeaderboard); });
+    var ht = el("button", { class: "lbtn" }, "❓  How to Play"); ht.addEventListener("click", function () { openModal(renderHowTo); });
+    var rs = el("button", { class: "lbtn danger" }, "↺  Reset progress"); rs.addEventListener("click", resetProgress);
+    $panelHost.appendChild(lb); $panelHost.appendChild(ht); $panelHost.appendChild(rs);
+  }
+
+  function renderHowTo() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("How to Play", true));
+    $panelHost.appendChild(el("div", { class: "howto" }, HOWTO));
+  }
+
+  var lbActive = null;
+  function renderLeaderboard() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("Leaderboard", true));
+    if (lbActive == null) lbActive = settings.difficulty;
+    var tabs = el("div", { class: "lbtabs" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { "aria-pressed": String(d === lbActive) }, cap(d));
+      b.addEventListener("click", function () { lbActive = d; renderLeaderboard(); });
+      tabs.appendChild(b);
+    });
+    $panelHost.appendChild(tabs);
+    var list = getBoard(lbActive);
+    if (!list.length) { $panelHost.appendChild(el("div", { class: "empty" }, "No scores yet.\nPlay a game to set a record!")); return; }
+    var ul = el("ul", { class: "lblist" });
+    list.forEach(function (r, i) {
+      var li = el("li");
+      li.appendChild(el("span", null, (i + 1) + ". " + r.name));
+      li.appendChild(el("span", null, String(r.score)));
+      ul.appendChild(li);
+    });
+    $panelHost.appendChild(ul);
+  }
+
+  function toggleRow(lab, desc, val, onChange) {
+    var r = el("div", { class: "row" });
+    var l = el("div"); l.appendChild(el("div", { class: "lab" }, lab)); l.appendChild(el("div", { class: "desc" }, desc));
+    var sw = el("button", { class: "sw", role: "switch", "aria-checked": String(!!val), "aria-label": lab });
+    sw.addEventListener("click", function () { var nv = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(nv)); onChange(nv); });
+    r.appendChild(l); r.appendChild(sw); return r;
+  }
+  function segment(labels, active, onPick) {
+    var s = el("div", { class: "seg", role: "group" });
+    labels.forEach(function (lab, i) {
+      var b = el("button", { "aria-pressed": String(i === active) }, lab);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(s.children, function (c, j) { c.setAttribute("aria-pressed", String(j === i)); });
+        onPick(i);
+      });
+      s.appendChild(b);
+    });
+    return s;
+  }
+
+  /* --------------------------- behaviours -------------------------------- */
+  function setSound(v) { soundOn = settings.sound = !!v; persist(); applyAudio(); updateSoundBtn(); emit("sound", { on: soundOn }); }
+  function setMusic(v) { musicOn = settings.music = !!v; persist(); applyAudio(); emit("music", { on: musicOn }); }
+
+  function doHint() {
+    var left = hintsLeft();
+    if (left <= 0) {
+      var ms = nextHintMs(); var h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000);
+      toast("No hints left. Next in " + h + "h " + m + "m — or start a new game.");
+      return;
+    }
+    if (!spendHint()) return;
+    updateHintBadge();
+    toast("💡 " + provideHintText());
+    emit("hint", { left: hintsLeft() });
+  }
+
+  function resetProgress() {
+    if (!confirm("Reset ALL saved progress and high scores for " + TITLE + "? This cannot be undone.")) return;
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (key && key.indexOf("gs:" + GID + ":") === 0) rm.push(key); }
+      rm.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {}
+    emit("reset", {});
+    toast("Progress reset. Reloading…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+
+  var toastT;
+  function toast(msg) {
+    var t = root.querySelector(".toast");
+    if (!t) { t = el("div", { class: "toast" }); root.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+
+  function openSettings() { openModal(renderSettings); }
+
+  /* ----------------------------- public API ------------------------------ */
+  window.GameShell = {
+    version: 1,
+    config: function (o) { Object.assign(CFG, o || {}); if (o) { if (o.howToPlay) HOWTO = o.howToPlay; if (o.hints) TIPS = o.hints.slice(); } return this; },
+    getDifficulty: function () { return settings.difficulty; },
+    onDifficulty: function (fn) { return on("difficulty", function (d) { fn(d.difficulty); }); },
+    setDifficulty: function (d) { if (DIFFS.indexOf(d) >= 0) { settings.difficulty = d; persist(); emit("difficulty", { difficulty: d }); } },
+    isSoundOn: function () { return soundOn; },
+    isMusicOn: function () { return musicOn; },
+    isMuted: function () { return !soundOn; },
+    submitScore: submitScore,
+    getScores: getBoard,
+    newGame: function (puzzleId) { refillHints(puzzleId); emit("newgame", { puzzleId: puzzleId }); },
+    useHint: doHint,
+    hintsLeft: hintsLeft,
+    onHint: function (fn) { CFG.onHint = fn; return this; },
+    openSettings: openSettings,
+    openHowToPlay: function () { openModal(renderHowTo); },
+    openLeaderboard: function () { openModal(renderLeaderboard); },
+    on: on,
+    routeMusic: function (node, ctx) { try { if (ctx && ctx.__gsMusic && node && node.connect) { node.connect(ctx.__gsMusic); return true; } } catch (e) {} return false; }
+  };
+
+  /* ------------------------------ boot ----------------------------------- */
+  function boot() {
+    // ensure a viewport meta exists for mobile
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = el("meta", { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" });
+      document.head.appendChild(m);
+    }
+    buildUI();
+    applyTheme();
+    applyAudio();
+    emit("ready", { id: GID });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+<!--/GAMESHELL_V1-->
+</head>
+<body>
+
+<canvas id="confetti-canvas" aria-hidden="true"></canvas>
+<div id="toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+<!-- HEADER -->
+<header id="header" role="banner">
+  <div id="header-left">
+    <button class="icon-btn" id="help-btn" title="How to play" aria-label="How to play">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+    </button>
+    <button class="icon-btn" id="hint-btn" title="Hint" aria-label="Get a hint">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/></svg>
+      <span class="hint-count" id="hint-count" aria-hidden="true">5</span>
+    </button>
+  </div>
+  <div style="display:flex;align-items:center;">
+    <span id="game-title" role="heading" aria-level="1">LexiGuess</span>
+    <span id="mode-badge" aria-label="Game mode">Daily</span>
+  </div>
+  <div id="header-right">
+    <button class="icon-btn" id="profile-btn" title="Profile" aria-label="Player profile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/></svg>
+    </button>
+    <button class="icon-btn" id="ach-btn" title="Achievements" aria-label="Achievements">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5h-2V3H7v2H5c-1.1 0-2 .9-2 2v1c0 2.55 1.92 4.63 4.39 4.94.63 1.5 1.98 2.63 3.61 2.96V19H7v2h10v-2h-4v-3.1c1.63-.33 2.98-1.46 3.61-2.96C19.08 12.63 21 10.55 21 8V7c0-1.1-.9-2-2-2zm-2 3.1V7h2v1c0 1.49-.98 2.77-2.32 3.22.19-.67.32-1.4.32-2.12zM5 8V7h2v1.1c0 .72.13 1.45.32 2.12C5.98 9.77 5 8.49 5 8z"/></svg>
+    </button>
+    <button class="icon-btn" id="stats-btn" title="Statistics" aria-label="Statistics">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11V3H8v6H2v12h20V11h-6zm-6-6h4v14h-4V5zm-6 6h4v8H4v-8zm16 8h-4v-6h4v6z"/></svg>
+    </button>
+    <button class="icon-btn" id="settings-btn" title="Settings" aria-label="Settings">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- GAME AREA -->
+<main id="game-area" role="main" aria-label="Wordle game board">
+  <div id="board-container">
+    <div id="board" role="grid" aria-label="Guess grid"></div>
+  </div>
+  <div id="countdown-area" aria-live="polite">
+    Next word in <span id="countdown-time">00:00:00</span>
+  </div>
+  <button id="new-word-btn">New Word</button>
+  <div id="keyboard" role="group" aria-label="On-screen keyboard"></div>
+</main>
+
+<!-- HOW TO PLAY MODAL -->
+<div class="modal-overlay" id="modal-how" role="dialog" aria-modal="true" aria-labelledby="how-title">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-how" aria-label="Close how to play">&#x2715;</button>
+    <h2 id="how-title">How to Play</h2>
+    <div class="how-section">
+      <p>Guess the <strong>LexiGuess</strong> in 6 tries.</p>
+      <p>Each guess must be a valid 5-letter word. Hit Enter to submit.</p>
+      <p>After each guess, the tiles will reveal how close your guess was.</p>
+    </div>
+    <hr class="modal-divider">
+    <div class="how-section">
+      <p><strong>Examples</strong></p>
+      <div class="example-row" role="img" aria-label="W is correct">
+        <div class="ex-tile correct">W</div>
+        <div class="ex-tile neutral">E</div>
+        <div class="ex-tile neutral">A</div>
+        <div class="ex-tile neutral">R</div>
+        <div class="ex-tile neutral">Y</div>
+      </div>
+      <p><strong>W</strong> is in the word and in the <strong>correct spot</strong>.</p>
+    </div>
+    <div class="how-section">
+      <div class="example-row" role="img" aria-label="I is present but wrong spot">
+        <div class="ex-tile neutral">P</div>
+        <div class="ex-tile present">I</div>
+        <div class="ex-tile neutral">L</div>
+        <div class="ex-tile neutral">L</div>
+        <div class="ex-tile neutral">S</div>
+      </div>
+      <p><strong>I</strong> is in the word but in the <strong>wrong spot</strong>.</p>
+    </div>
+    <div class="how-section">
+      <div class="example-row" role="img" aria-label="U is absent">
+        <div class="ex-tile neutral">V</div>
+        <div class="ex-tile neutral">A</div>
+        <div class="ex-tile neutral">G</div>
+        <div class="ex-tile absent">U</div>
+        <div class="ex-tile neutral">E</div>
+      </div>
+      <p><strong>U</strong> is <strong>not</strong> in the word in any spot.</p>
+    </div>
+    <hr class="modal-divider">
+    <div class="how-section">
+      <p>A new <strong>LexiGuess</strong> is available each day. You can also play <strong>Endless</strong> mode for unlimited puzzles!</p>
+    </div>
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-overlay" id="modal-stats" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-stats" aria-label="Close statistics">&#x2715;</button>
+    <h2 id="stats-title">Statistics</h2>
+    <div class="stats-row">
+      <div class="stat-item"><div class="stat-num" id="stat-played">0</div><div class="stat-label">Played</div></div>
+      <div class="stat-item"><div class="stat-num" id="stat-win-pct">0</div><div class="stat-label">Win %</div></div>
+      <div class="stat-item"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Current Streak</div></div>
+      <div class="stat-item"><div class="stat-num" id="stat-max-streak">0</div><div class="stat-label">Max Streak</div></div>
+    </div>
+    <div id="distribution">
+      <h3>Guess Distribution</h3>
+      <div id="dist-bars" role="img" aria-label="Guess distribution chart"></div>
+    </div>
+    <button id="stats-share-btn" style="display:none;" aria-label="Share result">Share</button>
+    <div id="stats-countdown" style="display:none;" aria-live="polite">
+      Next LexiGuess<span id="stats-countdown-time">00:00:00</span>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modal-settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-settings" aria-label="Close settings">&#x2715;</button>
+    <h2 id="settings-title">Settings</h2>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">How to Play</div>
+        <div class="setting-desc">View the rules and tile examples</div>
+      </div>
+      <button id="how-to-play-btn" class="settings-link-btn">View</button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Hint</div>
+        <div class="setting-desc">Reveal a correct letter (💡 button, top-left) — limited per game</div>
+      </div>
+      <button id="settings-hint-btn" class="settings-link-btn">Use Hint</button>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Hard Mode</div>
+        <div class="setting-desc">Any revealed hints must be used in subsequent guesses</div>
+      </div>
+      <label class="toggle" id="hard-mode-toggle-wrap">
+        <input type="checkbox" id="toggle-hard" aria-label="Hard mode">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Dark Theme</div>
+        <div class="setting-desc">Switch between light and dark appearance</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-dark" aria-label="Dark theme">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Colorblind Mode</div>
+        <div class="setting-desc">High contrast colors for color vision deficiency</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-colorblind" aria-label="Colorblind mode">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Sound Effects</div>
+        <div class="setting-desc">Key clicks, tile flips, win &amp; error sounds</div>
+        <div class="vol-row">
+          <input type="range" id="sfx-vol" min="0" max="100" value="70" aria-label="SFX volume">
+          <span class="vol-label" id="sfx-vol-label">70%</span>
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-sound" aria-label="Sound effects">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div class="setting-info">
+        <div class="setting-label">Background Music</div>
+        <div class="setting-desc">Ambient looping music while playing</div>
+        <div class="vol-row">
+          <input type="range" id="music-vol" min="0" max="100" value="30" aria-label="Music volume">
+          <span class="vol-label" id="music-vol-label">30%</span>
+        </div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="toggle-music" aria-label="Background music">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="setting-row" style="border-bottom:none;">
+      <div class="setting-info">
+        <div class="setting-label">Daily Mode</div>
+        <div class="setting-desc">Switch between Daily and Endless modes</div>
+      </div>
+      <button id="mode-switch-btn" style="padding:8px 16px;border-radius:4px;border:none;cursor:pointer;background:var(--correct);color:#fff;font-weight:700;font-size:0.85rem;">Endless</button>
+    </div>
+    <button id="reset-stats-btn">Reset All Stats</button>
+    <div class="credits">LexiGuess — an original word puzzle game<br>Inspired by the word-guessing genre</div>
+  </div>
+</div>
+
+<!-- PROFILE MODAL -->
+<div class="modal-overlay" id="modal-profile" role="dialog" aria-modal="true" aria-labelledby="profile-title">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-profile" aria-label="Close profile">&#x2715;</button>
+    <h2 id="profile-title">Profile</h2>
+    <div class="profile-section">
+      <h3>Player Name</h3>
+      <div class="profile-name-wrap">
+        <input type="text" class="profile-name-input" id="profile-name-input" maxlength="20" placeholder="Your name..." aria-label="Player name">
+        <button class="profile-save-btn" id="profile-save-btn">Save</button>
+      </div>
+    </div>
+    <div class="profile-section">
+      <h3>Lifetime Stats</h3>
+      <div class="profile-stats-grid">
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-played">0</div><div class="profile-stat-label">Played</div></div>
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-wins">0</div><div class="profile-stat-label">Wins</div></div>
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-win-pct">0%</div><div class="profile-stat-label">Win Rate</div></div>
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-streak">0</div><div class="profile-stat-label">Streak</div></div>
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-max-streak">0</div><div class="profile-stat-label">Best Streak</div></div>
+        <div class="profile-stat"><div class="profile-stat-num" id="prof-avg-guesses">-</div><div class="profile-stat-label">Avg Guesses</div></div>
+      </div>
+    </div>
+    <div class="profile-id" id="profile-id-display"></div>
+  </div>
+</div>
+
+<!-- ACHIEVEMENTS MODAL -->
+<div class="modal-overlay" id="modal-ach" role="dialog" aria-modal="true" aria-labelledby="ach-title">
+  <div class="modal">
+    <button class="modal-close" data-close="modal-ach" aria-label="Close achievements">&#x2715;</button>
+    <h2 id="ach-title">Achievements</h2>
+    <div class="ach-list" id="ach-list" role="list"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  WORD LISTS
+// ============================================================
+const ANSWERS = `about above abuse actor acute admit adobe adopt adult after again agent agree ahead alarm album alert alike alive alley allow alone along alter angel angle angry anime ankle annex apart apple apply arena argue arise armor array aside aspen asset atlas attic audio audit avoid awake award aware awful badly baker balls bands basic basis beach beard beast began begin being belle bench bible birds blade blame blank blast blaze bleed bless blind block blood bloom blown blues blunt board bonus boost booth bound boxer brace braid brain brand brave bread break breed bribe brick bride brief bring broad broke brown brush built bulge bully bunch burst buyer cabin camel canal cargo carry catch cause cease chain chair chaos charm chart chase cheap cheat check cheek chess chest chief child China china choir chunk civic civil claim clamp clash class clean clear clerk click cliff climb cling clock clone close cloth cloud coach coast cobra comet comic comma coral count court cover crack craft crane crash cream creek creep crest crime cross crowd crown crude cruel crush curve cycle daily dance dandy dated debug decay decoy demon dense depot depth devil digit dirty disco dizzy dodge doing dolly donor doubt dough draft drain drama drank drape drawl dream dress dried drink drive drove druid dully dunce dwarf eagle eager early earth eight elect elite ember emote empty enemy enjoy enter entry equal error every exact excel exist extra fable faded fairy faith false fancy fatal fault feast fence fever field fifth fight finch first fixed flame flash flesh float flood floor floss flour fluid flunk flute focus foamy force forge forth forum found frame frank fraud fresh frost froze fully funny fuzzy giant given gizmo glare glide globe gloom gloss glove glyph going grace grade grain grand grant grasp gravy graze greed greet grind groan grove grown gruel guard guest guild guile guise gulch habit happy harsh heart heave hedge heist herbs hinge hippo hoist holly honor hoppy hovel human humor hunky hyena ideal image imply inbox index inner input irony issue ivory jazzy jewel joint joker joust judge juice jumbo jumpy juror kayak knack kneel knelt knife knock knoll known label lance large laser latch later laugh layer leaky lease leave legal level light limit linen liner lithe liver lived lobby local lodge logic loose lover lucky lunar lunch lusty lyric magic mafia major maker mango manor maple march marsh match mayor media mercy merge merit merry micro might mimic miner minor minus mixed model month moose moral mossy motto mourn mouse movie muddy mummy murky music naive nasty naval nerdy nerve newly niece night noble noise novel nurse nutty nymph oaken octet olive order other outdo outer outgo oxide ozone paddy panic paper party pasta pasty patch pause peace peach pedal penny perky pilot pinch piney pixel pizza place plaid plain plant plaza plead pluck plumb plume plump plunk plush poach polar polka poppy posed posit power prank prawn press pride prime print probe prong prose proud prowl prune psalm psych pulse punch pupil purse pushy pygmy query queue quirk quota quote rabbi radar rainy rally ranch range rapid raven ready realm rebel recur redid reedy regal reign relay repay reset retro retry rider ridge rifle right risky rivet robot rocky rogue rouge rough round royal rugby ruler rumba rusty sadly saint salve sandy sassy sauce savor savvy scald scaly scalp scant scare scarf scary scene scone scoop score scour scout scram screw scrub scuba seamy seize sense serum setup seven shack shade shady shaft shake shaky shale shame shape share shark sharp shawl sheen sheep shelf shell shine shire shirt shock shoes shook shore short shout showy shrew shrub shrug sigma sight silky silly since sinew sixth sixty sized skimp skirt skull slain slant slash slate slave sleep sleet slept slice slime slimy slink sloth slump slyly small smack smart smear smile smoke snack snake snare snark sneak snide sniff snore snort snowy soapy solve sorry south space spade spare spark spear spend spice spill spine spite split spoke spook spore sport spout spray spree sprig squad squat squid stack staid stain stair stale stall stamp stand stark stars stash state stave steak steal steam steep steel steer stern stiff still stink stock stomp stone stood stork story stout stove strap stray strip strut stuck study stunt suave sugar suite sulky sunny super sushi swamp swarm swear sweet swept swirl swoop syrup tabby taboo talon tango taunt tawny tease tepid terse thaw their there thick thing think thorn those three threw throw thumb tidal tiger timid tipsy title today token torso total touch tough towel toxic trace track trade trail train trait tramp trawl tread trend triad trial trick tried trill troop truck trump truss trust truth tumor tulip tunny twang tweed twice twirl twist tying truly ultra umbra uncle uncut under undue unfed unfit union unite until unzip upper upset usher usual utmost utter uvula valid value valve venom verge vicar viola viral viper virus vista vital vivid vixen vodka vogue voice vocal voter vouch vowel vying waltz waver weary weave wedge weedy weird whelm where while whiff whirl whisk woken woman women wrote wrung yacht yearn years yodel yoked youth zebra zesty zippy`.split(/\s+/).filter(w=>w.length===5);
+
+const VALID_WORDS_EXTRA = `aback abase abate abbot abbey abhor abide abler abode abort abuzz acorn acrid acted adage adept admix adore adorn aegis afoul afoot agape agate agile aging aglow agony agora algae alibi allay aloft aloof aloud amass amaze amble amend amiss amuse anvil apian aptly arbor ardor argue ariel arson ashen askew astir atone avail azure babby baccy balmy bandy barmy basil bawdy befit begot beige bemuse besot bicep bight bilge bimbo birch bison bitty blimp bling bliss bloke boggy bolts booze bored bough boxed brash brawl braze breve briar brine briny brisk brood broth brunt bucks buggy bulky bunny burly burns bushy butte cadre cakey campy carte caste cavil cedar chaff champ chaps chary chasm chewy chomp chord chore chose clack clamp cleft cloak clout coaxed coils combo comfy conch corny couch coup covet cower crass crawl creak creed crimp croft croon crore crude cruse cupid curly curry cushy dainty daisy dapper darned daubs dawdy deafen dearly decaf deign deity delve delta derby derth deter dicot dingo dingy ditzy dizzy dolce doleful dopey doted dowdy dowry dowse ducal dumpy dunno dusky duvet eerie effuse egads eight ember enact envoy erode estop evoke exert exude exult faddy faint fait falls fanny fared farce feign feral fetch fetus fiend flair flank flare flaky flinch flop flunk foamy foggy foray forgo foyer frail frays freak freed frieze frizz frugal fungi funky fussy gabby gangy gaudy gauzy gavel gawky geeky germy ghoul gibed giddy gimpy girth glint glitz gloat gooey gouty gruff grump grunt guava gullet gulped gummy gusto gutsy gyrate haiku haste hanky harpy hasty haven hence heron hertz hippy hitch hoary hodge hoggy hokey homer honky horny hunky husky hutch hydra icily imbue imply inept infer innit inked inset inter inure ionic irate itchy jazzy jelly jiffy jimmy jingo jokey judgy jumpy karma knave lacky liege listy lymph lofty lusty magma manly melee minty moldy moony morph mousy mucky muggy mushy nacre nappy narky natty nebby nervy nimby nippy nitty numby nutty oddly offal opener ovoid owlish paddy pagan parch passe pawky peaky pecky perky petty phony picky plasm plummy plunk podgy pored potty pouty pricy privy prone proxy pudgy puffed pukka puppy putty pygmy queasy rabid ragged rangy raspy ratty rawly rebus remix reedy replete retry revel ribald ribby rinky risky ritzy ropey rowdy runic runty saucy scalp scuff segue shaky shiny shoal simmy sippy skimp slain slash slaty sleek slippy slosh slunk slyly smalt smash smoky smudge snaky snide sniff snipe soggy soothe soppy squat squid stave steamy steely swanky tabby tepid thatch tacky tipsy toxic tepid tuffy ungainly unify unruly vaunt vexed vomit waspy weird welly wispy witch witty woozy wordy wormy wrath wring wrist zingy zonal`.split(/\s+/).filter(w=>w.length===5);
+
+const VALID_SET = new Set([...ANSWERS.map(w=>w.toLowerCase()), ...VALID_WORDS_EXTRA.map(w=>w.toLowerCase())]);
+
+// ============================================================
+//  CONSTANTS & STATE
+// ============================================================
+let MAX_GUESSES = 6;
+const DEFAULT_MAX_GUESSES = 6;
+const WORD_LEN = 5;
+const MAX_HINTS = 5;
+const EPOCH = new Date('2024-01-01T00:00:00Z').getTime();
+const SAVE_VERSION = 2;
+const NS = '31-wordle_'; // namespace prefix for all keys
+
+const STORAGE_KEYS = {
+  dailyState: NS + 'daily_state',
+  stats:      NS + 'stats',
+  settings:   NS + 'settings',
+  profile:    NS + 'profile',
+  achievements: NS + 'achievements',
+};
+
+let state = {
+  mode: 'daily',
+  target: '',
+  guesses: [],
+  currentRow: 0,
+  currentInput: '',
+  gameOver: false,
+  won: false,
+  hardMode: false,
+  darkMode: false,
+  colorblindMode: false,
+  soundEnabled: true,
+  musicEnabled: false,
+  sfxVolume: 0.7,
+  musicVolume: 0.3,
+  shareData: null,
+  hintsUsed: 0,
+};
+
+let settings = {
+  hardMode: false,
+  darkMode: false,
+  colorblindMode: false,
+  soundEnabled: true,
+  musicEnabled: false,
+  sfxVolume: 70,
+  musicVolume: 30,
+};
+
+// ============================================================
+//  ACHIEVEMENTS DEFINITIONS
+// ============================================================
+const ACHIEVEMENT_DEFS = [
+  { id: 'first_win',      icon: '🎉', name: 'First Win',       desc: 'Win your first game' },
+  { id: 'genius',         icon: '🧠', name: 'Genius',          desc: 'Solve the word in 1 guess' },
+  { id: 'streak_3',       icon: '🔥', name: 'On Fire',         desc: 'Reach a 3-day win streak' },
+  { id: 'streak_7',       icon: '🌟', name: 'One Week Strong', desc: 'Reach a 7-day win streak' },
+  { id: 'streak_30',      icon: '🏆', name: 'Month Master',    desc: 'Reach a 30-day win streak' },
+  { id: 'played_10',      icon: '📅', name: 'Committed',       desc: 'Play 10 games' },
+  { id: 'played_50',      icon: '📖', name: 'Word Nerd',       desc: 'Play 50 games' },
+  { id: 'played_100',     icon: '💯', name: 'Centurion',       desc: 'Play 100 games' },
+  { id: 'endless_5',      icon: '♾️',  name: 'Endless Runner',  desc: 'Play 5 Endless games' },
+  { id: 'hard_win',       icon: '💪', name: 'Hard Boiled',     desc: 'Win in Hard Mode' },
+  { id: 'perfect',        icon: '✨', name: 'Perfect',         desc: 'Win 10 games in a row without losing' },
+];
+
+// ============================================================
+//  AUDIO
+// ============================================================
+let audioCtx = null;
+let musicOscillators = [];
+let musicPlaying = false;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq, type, duration, gain=0.3, delay=0) {
+  if (!settings.soundEnabled) return;
+  const vol = settings.sfxVolume / 100;
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.connect(gainNode); gainNode.connect(ctx.destination);
+    osc.type = type; osc.frequency.value = freq;
+    gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
+    gainNode.gain.linearRampToValueAtTime(gain * vol, ctx.currentTime + delay + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
+    osc.start(ctx.currentTime + delay);
+    osc.stop(ctx.currentTime + delay + duration + 0.05);
+  } catch(e){}
+}
+
+function playKeyClick() { playTone(600, 'sine', 0.04, 0.15); }
+function playFlip(idx)  { playTone(440 + idx*30, 'sine', 0.12, 0.08, idx*0.06); }
+function playWin()  {
+  [261,329,392,523].forEach((f,i) => playTone(f, 'triangle', 0.3, 0.2, i*0.12));
+}
+function playError() { playTone(200, 'sawtooth', 0.15, 0.2); }
+function playAchievement() {
+  [523, 659, 784].forEach((f,i) => playTone(f, 'sine', 0.25, 0.18, i*0.1));
+}
+
+function startMusic() {
+  if (!settings.musicEnabled || musicPlaying) return;
+  try {
+    const ctx = getAudioCtx();
+    musicPlaying = true;
+    const vol = settings.musicVolume / 100 * 0.08;
+
+    // Simple ambient drone: two low oscillators slightly detuned
+    function makeLoop(freq, detune) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 800;
+      osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      osc.detune.value = detune;
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 1.5);
+      osc.start();
+      musicOscillators.push({osc, gain});
+    }
+    makeLoop(110, 0);
+    makeLoop(165, 7);
+    makeLoop(220, -5);
+  } catch(e) { musicPlaying = false; }
+}
+
+function stopMusic() {
+  if (!musicPlaying) return;
+  try {
+    const ctx = getAudioCtx();
+    musicOscillators.forEach(({osc, gain}) => {
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
+      osc.stop(ctx.currentTime + 0.9);
+    });
+  } catch(e){}
+  musicOscillators = [];
+  musicPlaying = false;
+}
+
+function updateMusicVolume() {
+  if (!musicPlaying) return;
+  try {
+    const ctx = getAudioCtx();
+    const vol = settings.musicVolume / 100 * 0.08;
+    musicOscillators.forEach(({gain}) => {
+      gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.1);
+    });
+  } catch(e){}
+}
+
+// Unlock audio context on first gesture
+let audioUnlocked = false;
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  try { getAudioCtx(); } catch(e){}
+  if (settings.musicEnabled) startMusic();
+}
+document.addEventListener('click', unlockAudio, { once: false });
+document.addEventListener('keydown', unlockAudio, { once: false });
+
+// ============================================================
+//  DAILY SEED
+// ============================================================
+function getDayOffset() {
+  const now = new Date();
+  const utcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  return Math.floor((utcMidnight - EPOCH) / 86400000);
+}
+
+function getDailyWord() {
+  const offset = getDayOffset();
+  return ANSWERS[((offset % ANSWERS.length) + ANSWERS.length) % ANSWERS.length].toLowerCase();
+}
+
+function getRandomWord() {
+  return ANSWERS[Math.floor(Math.random() * ANSWERS.length)].toLowerCase();
+}
+
+function getDailyId() { return getDayOffset(); }
+
+// ============================================================
+//  GAMESHELL DIFFICULTY BRIDGE
+//  easy = 7 guesses (hard-mode off) · normal = 6 (current default,
+//  user's hard-mode honored) · hard = 5 guesses + hard-mode enforced.
+//  Applied at the start of each round; never regresses the default.
+// ============================================================
+let gsForceHardMode = false; // when true, hard-mode is enforced for the round
+function applyGameShellDifficulty() {
+  if (!(window.GameShell && typeof window.GameShell.getDifficulty === 'function')) {
+    MAX_GUESSES = DEFAULT_MAX_GUESSES;
+    gsForceHardMode = false;
+    return;
+  }
+  const d = window.GameShell.getDifficulty();
+  if (d === 'easy') {
+    MAX_GUESSES = DEFAULT_MAX_GUESSES + 1; // 7 rows
+    gsForceHardMode = false;
+  } else if (d === 'hard') {
+    MAX_GUESSES = DEFAULT_MAX_GUESSES - 1; // 5 rows
+    gsForceHardMode = true;
+  } else { // 'normal' == original behavior
+    MAX_GUESSES = DEFAULT_MAX_GUESSES;
+    gsForceHardMode = false;
+  }
+}
+
+// Effective hard-mode = the player's own toggle OR the difficulty-enforced one.
+function hardModeActive() {
+  return settings.hardMode || gsForceHardMode;
+}
+
+// ============================================================
+//  PERSISTENCE — robust try/catch, namespaced, versioned
+// ============================================================
+function safeGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw);
+  } catch(e) { return fallback; }
+}
+
+function safeSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch(e){}
+}
+
+function loadSettings() {
+  const s = safeGet(STORAGE_KEYS.settings, {});
+  settings.hardMode       = !!s.hardMode;
+  settings.darkMode       = !!s.darkMode;
+  settings.colorblindMode = !!s.colorblindMode;
+  settings.soundEnabled   = s.soundEnabled !== undefined ? !!s.soundEnabled : true;
+  settings.musicEnabled   = !!s.musicEnabled;
+  settings.sfxVolume      = (s.sfxVolume !== undefined) ? Number(s.sfxVolume) : 70;
+  settings.musicVolume    = (s.musicVolume !== undefined) ? Number(s.musicVolume) : 30;
+  applySettings();
+}
+
+function saveSettings() {
+  safeSet(STORAGE_KEYS.settings, settings);
+}
+
+function applySettings() {
+  document.documentElement.setAttribute('data-dark', settings.darkMode);
+  document.documentElement.setAttribute('data-colorblind', settings.colorblindMode);
+  const th = document.getElementById('toggle-hard');
+  const td = document.getElementById('toggle-dark');
+  const tc = document.getElementById('toggle-colorblind');
+  const ts = document.getElementById('toggle-sound');
+  const tm = document.getElementById('toggle-music');
+  const sv = document.getElementById('sfx-vol');
+  const mv = document.getElementById('music-vol');
+  if (th) th.checked = settings.hardMode;
+  if (td) td.checked = settings.darkMode;
+  if (tc) tc.checked = settings.colorblindMode;
+  if (ts) ts.checked = settings.soundEnabled;
+  if (tm) tm.checked = settings.musicEnabled;
+  if (sv) { sv.value = settings.sfxVolume; document.getElementById('sfx-vol-label').textContent = settings.sfxVolume + '%'; }
+  if (mv) { mv.value = settings.musicVolume; document.getElementById('music-vol-label').textContent = settings.musicVolume + '%'; }
+}
+
+function getDefaultStats() {
+  return { played:0, wins:0, streak:0, maxStreak:0, distribution:{1:0,2:0,3:0,4:0,5:0,6:0}, lastPlayedDay: null, totalGuesses: 0, version: SAVE_VERSION };
+}
+
+function loadStats() {
+  const s = safeGet(STORAGE_KEYS.stats, null);
+  if (!s) return getDefaultStats();
+  // Migration: ensure all fields exist
+  const defaults = getDefaultStats();
+  const migrated = Object.assign({}, defaults, s);
+  if (!migrated.distribution) migrated.distribution = defaults.distribution;
+  if (migrated.totalGuesses === undefined) migrated.totalGuesses = 0;
+  if (migrated.lastPlayedDay === undefined) migrated.lastPlayedDay = null;
+  return migrated;
+}
+
+function saveStats(stats) {
+  safeSet(STORAGE_KEYS.stats, stats);
+}
+
+function updateStats(won, guessCount) {
+  const stats = loadStats();
+  const today = getDayOffset();
+  stats.played++;
+
+  if (won) {
+    stats.wins++;
+    stats.totalGuesses = (stats.totalGuesses || 0) + guessCount;
+
+    // STREAK FIX: only increment if lastPlayedDay was exactly yesterday or null (first win)
+    if (stats.lastPlayedDay === null) {
+      stats.streak = 1;
+    } else {
+      const gap = today - stats.lastPlayedDay;
+      if (gap === 1) {
+        stats.streak++;
+      } else if (gap > 1) {
+        // Skipped one or more days — reset streak
+        stats.streak = 1;
+      }
+      // gap === 0 means same day (already played today, shouldn't happen but be safe)
+    }
+    stats.maxStreak = Math.max(stats.maxStreak, stats.streak);
+    stats.distribution[guessCount] = (stats.distribution[guessCount] || 0) + 1;
+  } else {
+    stats.streak = 0;
+  }
+
+  stats.lastPlayedDay = today;
+  saveStats(stats);
+  checkAchievements(stats, won);
+}
+
+function loadDailyState() {
+  try {
+    const saved = safeGet(STORAGE_KEYS.dailyState, null);
+    if (saved && saved.dayId === getDayOffset()) return saved;
+  } catch(e){}
+  return null;
+}
+
+function saveDailyState() {
+  if (state.mode !== 'daily') return;
+  const data = {
+    dayId: getDayOffset(),
+    target: state.target,
+    guesses: state.guesses,
+    currentRow: state.currentRow,
+    currentInput: state.currentInput,
+    gameOver: state.gameOver,
+    won: state.won,
+    shareData: state.shareData,
+    hintsUsed: state.hintsUsed,
+  };
+  safeSet(STORAGE_KEYS.dailyState, data);
+}
+
+// ============================================================
+//  PLAYER PROFILE
+// ============================================================
+function getOrCreateProfile() {
+  let profile = safeGet(STORAGE_KEYS.profile, null);
+  if (!profile) {
+    const adjectives = ['Clever','Swift','Brave','Sharp','Quick','Wise','Keen'];
+    const nouns = ['Solver','Guesser','Thinker','Player','Wordsmith','Scholar'];
+    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const noun = nouns[Math.floor(Math.random() * nouns.length)];
+    profile = {
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('id-' + Date.now() + '-' + Math.random().toString(36).slice(2)),
+      name: adj + ' ' + noun,
+      createdAt: new Date().toISOString(),
+    };
+    safeSet(STORAGE_KEYS.profile, profile);
+  }
+  return profile;
+}
+
+function saveProfile(name) {
+  const profile = getOrCreateProfile();
+  profile.name = name.trim() || profile.name;
+  safeSet(STORAGE_KEYS.profile, profile);
+  return profile;
+}
+
+function refreshProfile() {
+  const profile = getOrCreateProfile();
+  const stats = loadStats();
+  document.getElementById('profile-name-input').value = profile.name;
+  document.getElementById('prof-played').textContent = stats.played;
+  document.getElementById('prof-wins').textContent = stats.wins;
+  const winPct = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
+  document.getElementById('prof-win-pct').textContent = winPct + '%';
+  document.getElementById('prof-streak').textContent = stats.streak;
+  document.getElementById('prof-max-streak').textContent = stats.maxStreak;
+  const avgG = stats.wins > 0 && stats.totalGuesses > 0 ? (stats.totalGuesses / stats.wins).toFixed(1) : '-';
+  document.getElementById('prof-avg-guesses').textContent = avgG;
+  document.getElementById('profile-id-display').textContent = 'ID: ' + profile.id.slice(0,18) + '...';
+}
+
+// ============================================================
+//  ACHIEVEMENTS
+// ============================================================
+function loadAchievements() {
+  return safeGet(STORAGE_KEYS.achievements, {});
+}
+
+function unlockAchievement(id) {
+  const achs = loadAchievements();
+  if (achs[id]) return false; // already unlocked
+  achs[id] = new Date().toISOString();
+  safeSet(STORAGE_KEYS.achievements, achs);
+  const def = ACHIEVEMENT_DEFS.find(a => a.id === id);
+  if (def) {
+    showToast(def.icon + ' Achievement: ' + def.name, 3000);
+    playAchievement();
+  }
+  return true;
+}
+
+function checkAchievements(stats, won) {
+  const endlessPlayed = safeGet(NS + 'endless_count', 0);
+
+  if (won) unlockAchievement('first_win');
+  if (won && state.guesses.length === 1) unlockAchievement('genius');
+  if (stats.streak >= 3)  unlockAchievement('streak_3');
+  if (stats.streak >= 7)  unlockAchievement('streak_7');
+  if (stats.streak >= 30) unlockAchievement('streak_30');
+  if (stats.played >= 10)  unlockAchievement('played_10');
+  if (stats.played >= 50)  unlockAchievement('played_50');
+  if (stats.played >= 100) unlockAchievement('played_100');
+  if (endlessPlayed >= 5)  unlockAchievement('endless_5');
+  if (won && settings.hardMode) unlockAchievement('hard_win');
+  // Perfect: 10 consecutive wins
+  if (stats.streak >= 10 && stats.wins >= 10) unlockAchievement('perfect');
+}
+
+function checkEndlessAchievements() {
+  let cnt = safeGet(NS + 'endless_count', 0);
+  cnt++;
+  safeSet(NS + 'endless_count', cnt);
+  if (cnt >= 5) unlockAchievement('endless_5');
+}
+
+function refreshAchievements() {
+  const achs = loadAchievements();
+  const list = document.getElementById('ach-list');
+  list.innerHTML = '';
+  ACHIEVEMENT_DEFS.forEach(def => {
+    const unlocked = !!achs[def.id];
+    const item = document.createElement('div');
+    item.className = 'ach-item' + (unlocked ? ' unlocked' : '');
+    item.setAttribute('role', 'listitem');
+    item.innerHTML = `
+      <div class="ach-icon" aria-hidden="true">${def.icon}</div>
+      <div class="ach-info">
+        <div class="ach-name">${def.name}</div>
+        <div class="ach-desc">${def.desc}</div>
+      </div>
+      <div class="ach-badge">${unlocked ? 'Unlocked' : 'Locked'}</div>
+    `;
+    list.appendChild(item);
+  });
+}
+
+// ============================================================
+//  BOARD SETUP
+// ============================================================
+function buildBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  // Keep the grid in sync with the (difficulty-driven) guess count.
+  board.style.gridTemplateRows = `repeat(${MAX_GUESSES}, 1fr)`;
+  for (let r = 0; r < MAX_GUESSES; r++) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = `row-${r}`;
+    row.setAttribute('role', 'row');
+    for (let c = 0; c < WORD_LEN; c++) {
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.id = `tile-${r}-${c}`;
+      tile.setAttribute('role', 'gridcell');
+      tile.setAttribute('aria-label', `Row ${r+1} column ${c+1}`);
+      row.appendChild(tile);
+    }
+    board.appendChild(row);
+  }
+}
+
+function buildKeyboard() {
+  const kb = document.getElementById('keyboard');
+  kb.innerHTML = '';
+  const rows = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['Enter','z','x','c','v','b','n','m','⌫'],
+  ];
+  rows.forEach(keys => {
+    const row = document.createElement('div');
+    row.className = 'kb-row';
+    keys.forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'key' + (key==='Enter'||key==='⌫' ? ' wide' : '');
+      btn.textContent = key === '⌫' ? '⌫' : key.toUpperCase();
+      btn.dataset.key = key;
+      const ariaLabel = key === '⌫' ? 'Backspace' : key === 'Enter' ? 'Enter' : key.toUpperCase();
+      btn.setAttribute('aria-label', ariaLabel);
+      btn.addEventListener('click', () => handleKey(key));
+      if (key !== 'Enter' && key !== '⌫') btn.id = `key-${key}`;
+      row.appendChild(btn);
+    });
+    kb.appendChild(row);
+  });
+}
+
+// ============================================================
+//  GAME INIT
+// ============================================================
+function initGame(mode, forceNew = false) {
+  state.mode = mode;
+  state.guesses = [];
+  state.currentRow = 0;
+  state.currentInput = '';
+  state.gameOver = false;
+  state.won = false;
+  state.shareData = null;
+  state.hintsUsed = 0;
+
+  // Read difficulty for this round (guesses / hard-mode). 'normal' == default.
+  applyGameShellDifficulty();
+
+  if (mode === 'daily') {
+    state.target = getDailyWord();
+    document.getElementById('mode-badge').textContent = 'Daily';
+    document.getElementById('mode-switch-btn').textContent = 'Endless';
+    document.getElementById('new-word-btn').classList.remove('visible');
+
+    const saved = loadDailyState();
+    if (saved && !forceNew) {
+      state.guesses = saved.guesses;
+      state.currentRow = saved.currentRow;
+      state.currentInput = saved.currentInput;
+      state.gameOver = saved.gameOver;
+      state.won = saved.won;
+      state.shareData = saved.shareData;
+      state.hintsUsed = saved.hintsUsed || 0;
+      // A saved board may hold more guesses than the current difficulty allows
+      // (player changed difficulty mid-day). Grow the row count so the resumed
+      // board never clips already-played guesses.
+      MAX_GUESSES = Math.max(MAX_GUESSES, state.guesses.length, state.currentRow,
+                             saved.gameOver ? state.guesses.length : state.currentRow + 1);
+      buildBoard();
+      buildKeyboard();
+      state.guesses.forEach((guess, rowIdx) => {
+        const result = scoreGuess(guess, state.target);
+        revealRow(rowIdx, guess, result, true);
+      });
+      if (!state.gameOver) {
+        renderCurrentInput();
+      }
+      if (state.gameOver) showGameOver(state.won, false);
+      updateHintButton();
+      return;
+    }
+  } else {
+    state.target = getRandomWord();
+    document.getElementById('mode-badge').textContent = 'Endless';
+    document.getElementById('mode-switch-btn').textContent = 'Daily';
+  }
+
+  buildBoard();
+  buildKeyboard();
+  document.getElementById('countdown-area').classList.remove('visible');
+  document.getElementById('new-word-btn').classList.remove('visible');
+  updateHintButton();
+
+  // GameShell: a brand-new word/round — refill the shell's hint budget.
+  // Daily uses the day id (one puzzle/day, hints persist); endless mints a
+  // fresh id per word so hints refill each round.
+  if (window.GameShell && typeof window.GameShell.newGame === 'function') {
+    const puzzleId = (mode === 'daily')
+      ? ('daily-' + getDailyId())
+      : ('endless-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8));
+    window.GameShell.newGame(puzzleId);
+  }
+}
+
+// ============================================================
+//  COLORING ALGORITHM
+// ============================================================
+function scoreGuess(guess, target) {
+  const result = Array(WORD_LEN).fill('absent');
+  const targetArr = target.split('');
+  const guessArr = guess.split('');
+  const targetCount = {};
+
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (guessArr[i] === targetArr[i]) {
+      result[i] = 'correct';
+      targetArr[i] = null; guessArr[i] = null;
+    }
+  }
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (targetArr[i] !== null) {
+      targetCount[targetArr[i]] = (targetCount[targetArr[i]] || 0) + 1;
+    }
+  }
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (guessArr[i] !== null && targetCount[guessArr[i]] > 0) {
+      result[i] = 'present';
+      targetCount[guessArr[i]]--;
+    }
+  }
+  return result;
+}
+
+// ============================================================
+//  RENDER
+// ============================================================
+function renderCurrentInput() {
+  for (let c = 0; c < WORD_LEN; c++) {
+    const tile = document.getElementById(`tile-${state.currentRow}-${c}`);
+    const ch = state.currentInput[c] || '';
+    tile.textContent = ch.toUpperCase();
+    tile.setAttribute('aria-label', `Row ${state.currentRow+1} column ${c+1}: ${ch.toUpperCase() || 'empty'}`);
+    if (ch) { tile.dataset.letter = ch; } else { delete tile.dataset.letter; }
+    tile.removeAttribute('data-state');
+  }
+}
+
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function revealRow(rowIdx, guess, result, instant = false) {
+  const delay = (instant || reducedMotion) ? 0 : 300;
+  for (let c = 0; c < WORD_LEN; c++) {
+    const tile = document.getElementById(`tile-${rowIdx}-${c}`);
+    tile.textContent = guess[c].toUpperCase();
+    tile.dataset.letter = guess[c];
+    tile.setAttribute('aria-label', `Row ${rowIdx+1} col ${c+1}: ${guess[c].toUpperCase()} ${result[c]}`);
+
+    if (instant || reducedMotion) {
+      tile.dataset.state = result[c];
+    } else {
+      const tDelay = c * delay;
+      setTimeout(() => {
+        tile.classList.add('flip-in');
+        if (settings.soundEnabled) playFlip(c);
+        setTimeout(() => {
+          tile.classList.remove('flip-in');
+          tile.dataset.state = result[c];
+          tile.classList.add('flip-out');
+          setTimeout(() => tile.classList.remove('flip-out'), 260);
+        }, 250);
+      }, tDelay);
+    }
+  }
+  if (!instant && !reducedMotion) {
+    setTimeout(() => updateKeyboardStates(guess, result), WORD_LEN * delay + 260);
+  } else {
+    updateKeyboardStates(guess, result);
+  }
+}
+
+function updateKeyboardStates(guess, result) {
+  const priority = { correct: 3, present: 2, absent: 1, '': 0 };
+  for (let c = 0; c < WORD_LEN; c++) {
+    const ch = guess[c];
+    const keyEl = document.getElementById(`key-${ch}`);
+    if (!keyEl) continue;
+    const cur = keyEl.dataset.state || '';
+    if ((priority[result[c]] || 0) > (priority[cur] || 0)) {
+      keyEl.dataset.state = result[c];
+      keyEl.setAttribute('aria-label', ch.toUpperCase() + ' ' + result[c]);
+    }
+  }
+}
+
+// ============================================================
+//  HARD MODE VALIDATION
+// ============================================================
+function checkHardMode(guess) {
+  if (!hardModeActive() || state.guesses.length === 0) return null;
+  const greens = {};
+  const yellows = {};
+
+  state.guesses.forEach((g) => {
+    const result = scoreGuess(g, state.target);
+    result.forEach((r, i) => {
+      if (r === 'correct') greens[i] = g[i];
+    });
+    const ycount = {};
+    result.forEach((r, i) => {
+      if (r === 'correct' || r === 'present') {
+        ycount[g[i]] = (ycount[g[i]] || 0) + 1;
+      }
+    });
+    Object.entries(ycount).forEach(([ch, cnt]) => {
+      yellows[ch] = Math.max(yellows[ch] || 0, cnt);
+    });
+  });
+
+  for (const [pos, ch] of Object.entries(greens)) {
+    if (guess[+pos] !== ch) {
+      return `Position ${+pos+1} must be ${ch.toUpperCase()}`;
+    }
+  }
+  for (const [ch, needed] of Object.entries(yellows)) {
+    const count = guess.split('').filter(c => c === ch).length;
+    if (count < needed) {
+      return `Guess must contain ${ch.toUpperCase()}`;
+    }
+  }
+  return null;
+}
+
+// ============================================================
+//  INPUT HANDLING
+// ============================================================
+function handleKey(key) {
+  if (state.gameOver) return;
+  const k = key === '⌫' ? 'Backspace' : key;
+
+  if (k === 'Enter') {
+    submitGuess();
+  } else if (k === 'Backspace' || k === 'Delete') {
+    if (state.currentInput.length > 0) {
+      state.currentInput = state.currentInput.slice(0, -1);
+      renderCurrentInput();
+      saveDailyState();
+    }
+  } else if (/^[a-zA-Z]$/.test(k)) {
+    if (state.currentInput.length < WORD_LEN) {
+      state.currentInput += k.toLowerCase();
+      const tile = document.getElementById(`tile-${state.currentRow}-${state.currentInput.length - 1}`);
+      if (!reducedMotion) {
+        tile.classList.remove('pop');
+        void tile.offsetWidth;
+        tile.classList.add('pop');
+        setTimeout(() => tile.classList.remove('pop'), 100);
+      }
+      if (settings.soundEnabled) playKeyClick();
+      renderCurrentInput();
+      saveDailyState();
+    }
+  }
+}
+
+function submitGuess() {
+  if (state.currentInput.length !== WORD_LEN) {
+    shakeRow(state.currentRow);
+    showToast('Not enough letters');
+    playError();
+    return;
+  }
+  const word = state.currentInput.toLowerCase();
+  if (!VALID_SET.has(word)) {
+    shakeRow(state.currentRow);
+    showToast('Not in word list');
+    playError();
+    return;
+  }
+  const hardErr = checkHardMode(word);
+  if (hardErr) {
+    shakeRow(state.currentRow);
+    showToast(hardErr);
+    playError();
+    return;
+  }
+
+  const result = scoreGuess(word, state.target);
+  state.guesses.push(word);
+  revealRow(state.currentRow, word, result, false);
+
+  const rowIdx = state.currentRow;
+  state.currentRow++;
+  state.currentInput = '';
+
+  const revealTime = reducedMotion ? 0 : (WORD_LEN * 300 + 300);
+
+  if (result.every(r => r === 'correct')) {
+    state.won = true;
+    state.gameOver = true;
+    state.shareData = buildShareString(true);
+    // GameShell: higher-is-better score = (maxGuesses - guessesUsed + 1) * 100.
+    if (window.GameShell && typeof window.GameShell.submitScore === 'function') {
+      const guessesUsed = state.guesses.length;
+      const gsScore = (MAX_GUESSES - guessesUsed + 1) * 100;
+      window.GameShell.submitScore(gsScore, { difficulty: window.GameShell.getDifficulty() });
+    }
+    setTimeout(() => {
+      if (!reducedMotion) bounceRow(rowIdx);
+      playWin();
+      const msgs = ['Genius!','Magnificent!','Impressive!','Splendid!','Great!','Phew!'];
+      showToast(msgs[rowIdx] || 'Got it!', 2000);
+      setTimeout(() => {
+        if (state.mode === 'daily') {
+          updateStats(true, state.guesses.length);
+        } else {
+          checkEndlessAchievements();
+        }
+        showGameOver(true, true);
+      }, reducedMotion ? 200 : 1800);
+    }, revealTime);
+  } else if (state.currentRow >= MAX_GUESSES) {
+    state.gameOver = true;
+    state.shareData = buildShareString(false);
+    setTimeout(() => {
+      if (state.mode === 'daily') updateStats(false, 0);
+      else checkEndlessAchievements();
+      showToast(state.target.toUpperCase(), 3000);
+      setTimeout(() => showGameOver(false, true), reducedMotion ? 200 : 2200);
+    }, revealTime);
+  }
+
+  saveDailyState();
+  if (!reducedMotion) launchConfettiOnWin(result);
+}
+
+function buildShareString(won) {
+  const dayId = state.mode === 'daily' ? getDayOffset() : '?';
+  const tries = won ? state.guesses.length : 'X';
+  const title = `LexiGuess #${dayId} ${tries}/6`;
+  const cb = settings.colorblindMode;
+  const lines = state.guesses.map(g => {
+    const res = scoreGuess(g, state.target);
+    return res.map(r => {
+      if (r === 'correct') return cb ? '🟧' : '🟩';
+      if (r === 'present') return cb ? '🟦' : '🟨';
+      return '⬛';
+    }).join('');
+  });
+  return [title, ...lines].join('\n');
+}
+
+// ============================================================
+//  GAME OVER
+// ============================================================
+function showGameOver(won, animate) {
+  updateHintButton();
+  if (state.mode === 'daily') {
+    document.getElementById('countdown-area').classList.add('visible');
+    startCountdown();
+  } else {
+    document.getElementById('new-word-btn').classList.add('visible');
+  }
+  if (animate) {
+    setTimeout(() => openModal('modal-stats'), won ? 2500 : 1500);
+  } else {
+    openModal('modal-stats');
+  }
+}
+
+// ============================================================
+//  COUNTDOWN
+// ============================================================
+let countdownInterval = null;
+function startCountdown() {
+  function update() {
+    const now = new Date();
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const diff = tomorrow - now;
+    if (diff <= 0) { location.reload(); return; }
+    const h = Math.floor(diff / 3600000).toString().padStart(2,'0');
+    const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2,'0');
+    const s = Math.floor((diff % 60000) / 1000).toString().padStart(2,'0');
+    const str = `${h}:${m}:${s}`;
+    const el1 = document.getElementById('countdown-time');
+    const el2 = document.getElementById('stats-countdown-time');
+    if (el1) el1.textContent = str;
+    if (el2) el2.textContent = str;
+  }
+  update();
+  clearInterval(countdownInterval);
+  countdownInterval = setInterval(update, 1000);
+}
+
+// ============================================================
+//  ANIMATIONS
+// ============================================================
+function shakeRow(rowIdx) {
+  if (reducedMotion) return;
+  const row = document.getElementById(`row-${rowIdx}`);
+  row.classList.remove('shake');
+  void row.offsetWidth;
+  row.classList.add('shake');
+  setTimeout(() => row.classList.remove('shake'), 650);
+}
+
+function bounceRow(rowIdx) {
+  if (reducedMotion) return;
+  const row = document.getElementById(`row-${rowIdx}`);
+  row.querySelectorAll('.tile').forEach((t, i) => {
+    setTimeout(() => {
+      t.style.animation = 'none';
+      void t.offsetWidth;
+      t.style.animation = `bounce 0.6s ease ${i*0.08}s forwards`;
+    }, 0);
+  });
+}
+
+// ============================================================
+//  CONFETTI
+// ============================================================
+let confettiActive = false;
+function launchConfettiOnWin(result) {
+  if (!result.every(r => r === 'correct')) return;
+  if (reducedMotion) return;
+  confettiActive = true;
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#6aaa64','#c9b458','#f5793a','#85c0f9','#e74c3c','#9b59b6'];
+  const particles = Array.from({length: 80}, () => ({
+    x: Math.random() * canvas.width,
+    y: -10,
+    r: 4 + Math.random() * 6,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    vx: (Math.random() - 0.5) * 4,
+    vy: 2 + Math.random() * 4,
+    angle: Math.random() * Math.PI * 2,
+    spin: (Math.random() - 0.5) * 0.2,
+    life: 1,
+  }));
+
+  const revealDelay = WORD_LEN * 300 + 300;
+  setTimeout(() => {
+    function step() {
+      if (!confettiActive) { ctx.clearRect(0,0,canvas.width,canvas.height); return; }
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      let alive = false;
+      particles.forEach(p => {
+        if (p.life <= 0) return;
+        alive = true;
+        p.x += p.vx; p.y += p.vy; p.angle += p.spin; p.vy += 0.08;
+        p.life -= 0.006;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r);
+        ctx.restore();
+      });
+      if (alive) requestAnimationFrame(step);
+      else { confettiActive = false; ctx.clearRect(0,0,canvas.width,canvas.height); }
+    }
+    requestAnimationFrame(step);
+  }, revealDelay);
+}
+
+// ============================================================
+//  TOASTS
+// ============================================================
+function showToast(msg, duration = 1500) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = msg;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.transition = 'opacity 0.3s';
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 320);
+  }, duration);
+}
+
+// ============================================================
+//  HINT SYSTEM
+// ============================================================
+function updateHintButton() {
+  const btn = document.getElementById('hint-btn');
+  const countEl = document.getElementById('hint-count');
+  if (!btn || !countEl) return;
+  const remaining = Math.max(0, MAX_HINTS - state.hintsUsed);
+  countEl.textContent = remaining;
+  const depleted = remaining === 0 || state.gameOver;
+  btn.classList.toggle('depleted', depleted);
+  btn.setAttribute('aria-label', 'Get a hint, ' + remaining + ' remaining');
+  btn.title = state.gameOver ? 'Hints unavailable (game over)' : ('Hint — ' + remaining + ' left');
+  const sBtn = document.getElementById('settings-hint-btn');
+  if (sBtn) {
+    sBtn.textContent = depleted ? (state.gameOver ? 'Unavailable' : 'No hints left') : ('Use Hint (' + remaining + ')');
+    sBtn.disabled = depleted;
+    sBtn.style.opacity = depleted ? '0.5' : '1';
+    sBtn.style.cursor = depleted ? 'default' : 'pointer';
+  }
+}
+
+function useHint() {
+  if (state.gameOver) { showToast('Game already over'); return; }
+  if (state.hintsUsed >= MAX_HINTS) { showToast('No hints left'); playError(); return; }
+
+  // Positions already revealed as correct (green) in earlier guesses
+  const knownGreen = new Set();
+  state.guesses.forEach(g => {
+    for (let i = 0; i < WORD_LEN; i++) {
+      if (g[i] === state.target[i]) knownGreen.add(i);
+    }
+  });
+
+  const candidates = [];
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (!knownGreen.has(i)) candidates.push(i);
+  }
+  if (candidates.length === 0) {
+    showToast('You already know every letter!');
+    return;
+  }
+
+  const pos = candidates[Math.floor(Math.random() * candidates.length)];
+  const letter = state.target[pos];
+
+  state.hintsUsed++;
+
+  // Persist a green ring on the revealed letter's key as a reminder
+  const keyEl = document.getElementById('key-' + letter);
+  if (keyEl) keyEl.setAttribute('data-hint', 'true');
+
+  showToast('💡 Letter ' + (pos + 1) + ' is "' + letter.toUpperCase() + '"', 2600);
+  playKeyClick();
+  updateHintButton();
+  saveDailyState();
+}
+
+// ============================================================
+//  GAMESHELL HINT (real hint: a correct letter in its position)
+//  Returns a STRING for GameShell's own (rate-limited) hint budget.
+//  Does NOT touch the in-game MAX_HINTS counter.
+// ============================================================
+function gsOrdinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+function gameShellHint() {
+  if (state.gameOver) return 'The round is over — start a new word for a fresh hint.';
+  // Positions not yet revealed green from prior guesses.
+  const knownGreen = new Set();
+  state.guesses.forEach(g => {
+    for (let i = 0; i < WORD_LEN; i++) {
+      if (g[i] === state.target[i]) knownGreen.add(i);
+    }
+  });
+  const candidates = [];
+  for (let i = 0; i < WORD_LEN; i++) {
+    if (!knownGreen.has(i)) candidates.push(i);
+  }
+  if (candidates.length === 0) return 'You already know every letter — go for the win!';
+  const pos = candidates[Math.floor(Math.random() * candidates.length)];
+  const letter = state.target[pos];
+  // Give the same on-board cue the native hint does, so it feels integrated.
+  const keyEl = document.getElementById('key-' + letter);
+  if (keyEl) keyEl.setAttribute('data-hint', 'true');
+  return 'The ' + gsOrdinal(pos + 1) + ' letter is ' + letter.toUpperCase() + '.';
+}
+
+// ============================================================
+//  MODALS
+// ============================================================
+function openModal(id) {
+  if (id === 'modal-stats') refreshStats();
+  if (id === 'modal-profile') refreshProfile();
+  if (id === 'modal-ach') refreshAchievements();
+  document.getElementById(id).classList.add('open');
+  // Focus first focusable element for accessibility
+  const modal = document.getElementById(id).querySelector('.modal');
+  if (modal) {
+    const focusable = modal.querySelector('button, input, [tabindex]');
+    if (focusable) setTimeout(() => focusable.focus(), 50);
+  }
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function refreshStats() {
+  const stats = loadStats();
+  const p = document.getElementById('stat-played');
+  const w = document.getElementById('stat-win-pct');
+  const s = document.getElementById('stat-streak');
+  const ms = document.getElementById('stat-max-streak');
+
+  // Count-up animation helper
+  function animateCount(el, target) {
+    const start = parseInt(el.textContent) || 0;
+    const dur = 600;
+    const t0 = performance.now();
+    function step(t) {
+      const elapsed = t - t0;
+      const frac = Math.min(elapsed / dur, 1);
+      el.textContent = Math.round(start + (target - start) * frac);
+      if (frac < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  animateCount(p, stats.played);
+  const winPct = stats.played > 0 ? Math.round(stats.wins / stats.played * 100) : 0;
+  animateCount(w, winPct);
+  animateCount(s, stats.streak);
+  animateCount(ms, stats.maxStreak);
+
+  const maxDist = Math.max(1, ...Object.values(stats.distribution));
+  const distEl = document.getElementById('dist-bars');
+  distEl.innerHTML = '';
+  for (let i = 1; i <= 6; i++) {
+    const count = stats.distribution[i] || 0;
+    const pct = Math.round((count / maxDist) * 100);
+    const isHighlight = state.gameOver && state.won && state.guesses.length === i;
+    const row = document.createElement('div'); row.className = 'dist-row';
+    row.innerHTML = `<div class="dist-num">${i}</div>
+      <div class="dist-bar-wrap">
+        <div class="dist-bar ${isHighlight?'highlight':''}" style="width:${Math.max(8,pct)}%" aria-label="${i} guess${i!==1?'es':''}: ${count}">${count}</div>
+      </div>`;
+    distEl.appendChild(row);
+  }
+
+  const shareBtn = document.getElementById('stats-share-btn');
+  const cdEl = document.getElementById('stats-countdown');
+  if (state.gameOver && state.shareData) {
+    shareBtn.style.display = 'block';
+    shareBtn.onclick = () => {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(state.shareData).then(() => showToast('Copied to clipboard!')).catch(()=>{
+          fallbackCopy(state.shareData);
+        });
+      } else {
+        fallbackCopy(state.shareData);
+      }
+    };
+  } else {
+    shareBtn.style.display = 'none';
+  }
+
+  if (state.mode === 'daily' && state.gameOver) {
+    cdEl.style.display = 'block';
+    startCountdown();
+  } else {
+    cdEl.style.display = 'none';
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showToast('Copied to clipboard!'); } catch(e) { showToast('Could not copy'); }
+  document.body.removeChild(ta);
+}
+
+// ============================================================
+//  SETTINGS CONTROLS
+// ============================================================
+function setupSettings() {
+  document.getElementById('toggle-hard').addEventListener('change', function() {
+    if (state.guesses.length > 0 && !state.gameOver) {
+      showToast('Cannot change after first guess');
+      this.checked = settings.hardMode;
+      return;
+    }
+    settings.hardMode = this.checked;
+    saveSettings();
+  });
+  document.getElementById('toggle-dark').addEventListener('change', function() {
+    settings.darkMode = this.checked;
+    applySettings(); saveSettings();
+  });
+  document.getElementById('toggle-colorblind').addEventListener('change', function() {
+    settings.colorblindMode = this.checked;
+    applySettings(); saveSettings();
+  });
+  document.getElementById('toggle-sound').addEventListener('change', function() {
+    settings.soundEnabled = this.checked;
+    saveSettings();
+    unlockAudio();
+  });
+  document.getElementById('toggle-music').addEventListener('change', function() {
+    settings.musicEnabled = this.checked;
+    saveSettings();
+    unlockAudio();
+    if (settings.musicEnabled) startMusic();
+    else stopMusic();
+  });
+  document.getElementById('sfx-vol').addEventListener('input', function() {
+    settings.sfxVolume = parseInt(this.value);
+    document.getElementById('sfx-vol-label').textContent = settings.sfxVolume + '%';
+    saveSettings();
+  });
+  document.getElementById('music-vol').addEventListener('input', function() {
+    settings.musicVolume = parseInt(this.value);
+    document.getElementById('music-vol-label').textContent = settings.musicVolume + '%';
+    saveSettings();
+    updateMusicVolume();
+  });
+  document.getElementById('how-to-play-btn').addEventListener('click', () => {
+    closeModal('modal-settings');
+    setTimeout(() => openModal('modal-how'), 220);
+  });
+  document.getElementById('settings-hint-btn').addEventListener('click', () => {
+    closeModal('modal-settings');
+    setTimeout(useHint, 220);
+  });
+  document.getElementById('mode-switch-btn').addEventListener('click', () => {
+    closeModal('modal-settings');
+    const newMode = state.mode === 'daily' ? 'endless' : 'daily';
+    initGame(newMode, false);
+  });
+  document.getElementById('new-word-btn').addEventListener('click', () => {
+    initGame('endless', true);
+  });
+  document.getElementById('reset-stats-btn').addEventListener('click', () => {
+    if (confirm('Reset ALL statistics and achievements? This cannot be undone.')) {
+      safeSet(STORAGE_KEYS.stats, getDefaultStats());
+      safeSet(STORAGE_KEYS.achievements, {});
+      safeSet(NS + 'endless_count', 0);
+      showToast('Stats reset!');
+      closeModal('modal-settings');
+    }
+  });
+  document.getElementById('profile-save-btn').addEventListener('click', () => {
+    const name = document.getElementById('profile-name-input').value.trim();
+    if (name.length < 1) { showToast('Name cannot be empty'); return; }
+    saveProfile(name);
+    showToast('Profile saved!');
+    refreshProfile();
+  });
+  document.getElementById('profile-name-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('profile-save-btn').click();
+  });
+}
+
+// ============================================================
+//  KEYBOARD EVENTS
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (document.querySelector('.modal-overlay.open')) return;
+  if (e.key === 'Enter') handleKey('Enter');
+  else if (e.key === 'Backspace' || e.key === 'Delete') handleKey('Backspace');
+  else if (/^[a-zA-Z]$/.test(e.key)) handleKey(e.key);
+});
+
+// Close modals
+document.querySelectorAll('[data-close]').forEach(btn => {
+  btn.addEventListener('click', () => closeModal(btn.dataset.close));
+});
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+
+// Trap focus inside open modal with Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const open = document.querySelector('.modal-overlay.open');
+    if (open) closeModal(open.id);
+  }
+});
+
+document.getElementById('help-btn').addEventListener('click', () => openModal('modal-how'));
+document.getElementById('hint-btn').addEventListener('click', useHint);
+document.getElementById('stats-btn').addEventListener('click', () => openModal('modal-stats'));
+document.getElementById('settings-btn').addEventListener('click', () => openModal('modal-settings'));
+document.getElementById('profile-btn').addEventListener('click', () => openModal('modal-profile'));
+document.getElementById('ach-btn').addEventListener('click', () => openModal('modal-ach'));
+
+// ============================================================
+//  BOOT
+// ============================================================
+// Ensure profile exists on load
+getOrCreateProfile();
+loadSettings();
+setupSettings();
+
+// ---- GameShell wiring (additive, fully guarded) ----
+if (window.GameShell) {
+  // Real hint: reveals one correct letter in its correct position.
+  if (typeof window.GameShell.onHint === 'function') {
+    window.GameShell.onHint(gameShellHint);
+  }
+  // Difficulty applies on the NEXT new word (never disrupts an in-progress game).
+  if (typeof window.GameShell.onDifficulty === 'function') {
+    window.GameShell.onDifficulty(function () {
+      if (state.gameOver) {
+        // Round already done: safe to re-render the board for the new difficulty.
+        initGame(state.mode, state.mode === 'endless');
+      } else if (state.guesses.length === 0) {
+        // Untouched board: apply immediately so row count matches right away.
+        initGame(state.mode, state.mode === 'endless');
+      } else {
+        showToast('Difficulty applies on your next word', 2200);
+      }
+    });
+  }
+}
+
+initGame('daily', false);
+
+// Show how-to on first ever visit
+try {
+  if (!localStorage.getItem(NS + 'visited')) {
+    localStorage.setItem(NS + 'visited', '1');
+    setTimeout(() => openModal('modal-how'), 300);
+  }
+} catch(e) {}
+</script>
+</body>
+</html>

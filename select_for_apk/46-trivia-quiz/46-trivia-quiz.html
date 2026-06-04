@@ -1,0 +1,2508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Trivia Quiz</title>
+<style>
+  :root {
+    --bg: #0f0f2e;
+    --bg2: #1a1a4e;
+    --card: #ffffff;
+    --card-dark: #1e1e50;
+    --text: #1a1a3e;
+    --text-light: #6b7280;
+    --accent: #6c63ff;
+    --accent2: #00c4cc;
+    --correct: #22c55e;
+    --wrong: #ef4444;
+    --streak: #f97316;
+    --gold: #fbbf24;
+    --shadow: 0 4px 24px rgba(0,0,0,0.35);
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--card);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 0 24px;
+    overflow-x: hidden;
+  }
+  /* ─── HEADER BAR ─── */
+  .top-bar {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+  }
+  .top-bar h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -.5px; }
+  .top-bar h1 span { color: var(--accent2); }
+  .btn-icon {
+    background: rgba(255,255,255,.1);
+    border: none;
+    color: #fff;
+    border-radius: 10px;
+    width: 40px; height: 40px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s;
+  }
+  .btn-icon:hover { background: rgba(255,255,255,.2); }
+  /* ─── MAIN WRAPPER ─── */
+  .main { width: 100%; max-width: 640px; padding: 0 16px; }
+  /* ─── SCREENS ─── */
+  .screen { display: none; animation: fadeIn .3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  /* ─── START SCREEN ─── */
+  .hero {
+    text-align: center;
+    padding: 12px 0 24px;
+  }
+  .hero .trophy { font-size: 3.5rem; line-height: 1; margin-bottom: 8px; }
+  .hero h2 { font-size: 2rem; font-weight: 900; }
+  .hero p { color: rgba(255,255,255,.65); margin-top: 6px; font-size: .95rem; }
+  .section-label {
+    font-size: .8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,.5);
+    margin: 18px 0 10px;
+  }
+  /* category grid */
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .cat-btn {
+    background: var(--card-dark);
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    padding: 14px 8px;
+    color: #fff;
+    cursor: pointer;
+    text-align: center;
+    font-size: .85rem;
+    font-weight: 600;
+    transition: all .2s;
+    position: relative;
+  }
+  .cat-btn .cat-icon { font-size: 1.8rem; display: block; margin-bottom: 4px; }
+  .cat-btn:hover { border-color: var(--accent2); background: #24245e; }
+  .cat-btn.selected { border-color: var(--accent); background: #2e2e7a; }
+  .cat-btn .hi-badge {
+    position: absolute;
+    top: 6px; right: 6px;
+    background: var(--gold);
+    color: #000;
+    font-size: .6rem;
+    font-weight: 800;
+    border-radius: 6px;
+    padding: 1px 4px;
+    display: none;
+  }
+  .cat-btn.has-hi .hi-badge { display: block; }
+  /* diff row */
+  .diff-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .diff-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: 2px solid transparent;
+    border-radius: var(--radius);
+    background: var(--card-dark);
+    color: #fff;
+    font-size: .9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .diff-btn:hover { border-color: var(--accent2); }
+  .diff-btn.easy.selected { border-color: #22c55e; background: #0d3320; }
+  .diff-btn.medium.selected { border-color: #fbbf24; background: #3a2d00; }
+  .diff-btn.hard.selected { border-color: #ef4444; background: #3a0d0d; }
+  /* start btn */
+  .btn-start {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 20px;
+    letter-spacing: .5px;
+    transition: opacity .2s, transform .1s;
+    box-shadow: 0 4px 20px rgba(108,99,255,.5);
+  }
+  .btn-start:hover { opacity: .9; }
+  .btn-start:active { transform: scale(.98); }
+  .btn-start:disabled { opacity: .35; cursor: default; }
+  /* how to play link */
+  .how-link {
+    text-align: center;
+    margin-top: 14px;
+    color: rgba(255,255,255,.45);
+    font-size: .85rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  /* ─── HUD ─── */
+  .hud {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .hud-cat {
+    background: rgba(255,255,255,.1);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: .78rem;
+    font-weight: 700;
+    flex: 1;
+  }
+  .hud-progress {
+    font-size: .85rem;
+    color: rgba(255,255,255,.65);
+    font-weight: 600;
+  }
+  .hud-score {
+    background: linear-gradient(135deg,var(--accent),var(--accent2));
+    border-radius: 10px;
+    padding: 4px 12px;
+    font-size: .9rem;
+    font-weight: 800;
+    color: #fff;
+  }
+  .hud-streak {
+    background: rgba(249,115,22,.15);
+    border: 1px solid rgba(249,115,22,.4);
+    border-radius: 10px;
+    padding: 4px 10px;
+    font-size: .85rem;
+    font-weight: 700;
+    color: var(--streak);
+    transition: transform .2s;
+  }
+  .hud-streak.pop { animation: streakPop .4s ease; }
+  @keyframes streakPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+  }
+  /* timer bar */
+  .timer-wrap {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .timer-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .25s linear, background .3s;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .timer-bar.urgent { background: var(--wrong) !important; }
+  /* question card */
+  .q-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 24px 20px 20px;
+    box-shadow: var(--shadow);
+    margin-bottom: 14px;
+  }
+  .q-num { font-size: .75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .q-text { font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1.45; }
+  /* options */
+  .options { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+  .opt-btn {
+    background: var(--card-dark);
+    border: 2px solid rgba(255,255,255,.12);
+    border-radius: 12px;
+    padding: 14px 16px;
+    color: #fff;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color .15s, background .15s, transform .1s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+  }
+  .opt-btn:hover:not(:disabled) { border-color: var(--accent2); background: #2a2a60; }
+  .opt-btn:active:not(:disabled) { transform: scale(.98); }
+  .opt-btn:disabled { cursor: default; }
+  .opt-letter {
+    width: 26px; height: 26px; flex-shrink: 0;
+    border-radius: 8px;
+    background: rgba(255,255,255,.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+  .opt-btn.correct { background: #0d3320; border-color: var(--correct); }
+  .opt-btn.correct .opt-letter { background: var(--correct); color: #fff; }
+  .opt-btn.wrong { background: #3a0d0d; border-color: var(--wrong); }
+  .opt-btn.wrong .opt-letter { background: var(--wrong); color: #fff; }
+  .opt-btn.wrong { animation: shake .4s ease; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+  .opt-btn.eliminated { opacity: .3; }
+  /* explanation */
+  .explanation {
+    background: rgba(108,99,255,.15);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 14px;
+    font-size: .85rem;
+    color: rgba(255,255,255,.8);
+    line-height: 1.5;
+    display: none;
+    margin-top: 4px;
+  }
+  .explanation.show { display: block; animation: fadeIn .3s ease; }
+  /* score delta */
+  .score-delta {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%) scale(0);
+    font-size: 2rem;
+    font-weight: 900;
+    pointer-events: none;
+    z-index: 100;
+    transition: none;
+  }
+  .score-delta.correct-delta { color: var(--correct); }
+  .score-delta.wrong-delta { color: var(--wrong); }
+  .score-delta.pop {
+    animation: deltaPop .9s ease forwards;
+  }
+  @keyframes deltaPop {
+    0% { transform: translate(-50%,-50%) scale(0); opacity:1; }
+    30% { transform: translate(-50%,-80%) scale(1.2); opacity:1; }
+    100% { transform: translate(-50%,-120%) scale(1); opacity:0; }
+  }
+  /* lifeline / next row */
+  .action-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .btn-lifeline {
+    flex: 0 0 auto;
+    padding: 12px 16px;
+    border: 2px solid rgba(255,255,255,.2);
+    border-radius: 12px;
+    background: rgba(255,255,255,.07);
+    color: #fff;
+    font-size: .85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-lifeline:hover:not(:disabled) { border-color: var(--gold); background: rgba(251,191,36,.12); }
+  .btn-lifeline:disabled { opacity: .3; cursor: default; }
+  .btn-next {
+    flex: 1;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: none;
+    transition: opacity .2s;
+  }
+  .btn-next.show { display: block; }
+  .btn-next:hover { opacity: .9; }
+  /* ─── END SCREEN ─── */
+  .end-wrap { text-align: center; padding-bottom: 24px; }
+  .rank-badge {
+    font-size: 4rem;
+    margin: 8px 0;
+    animation: badgeIn .5s cubic-bezier(.34,1.56,.64,1) forwards;
+    display: inline-block;
+  }
+  @keyframes badgeIn {
+    from { transform: scale(0); opacity:0; }
+    to { transform: scale(1); opacity:1; }
+  }
+  .rank-label {
+    font-size: 1.8rem;
+    font-weight: 900;
+    margin-bottom: 4px;
+  }
+  .end-score-big {
+    font-size: 3rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 8px 0;
+  }
+  .end-pct { font-size: 1.1rem; color: rgba(255,255,255,.65); margin-bottom: 6px; }
+  .new-record {
+    background: linear-gradient(135deg, var(--gold), #f59e0b);
+    color: #000;
+    font-weight: 800;
+    font-size: .9rem;
+    border-radius: 20px;
+    padding: 5px 16px;
+    display: inline-block;
+    margin: 8px 0;
+    animation: fadeIn .4s ease;
+  }
+  .end-stats {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .stat-pill {
+    background: rgba(255,255,255,.08);
+    border-radius: 12px;
+    padding: 10px 16px;
+    min-width: 80px;
+    text-align: center;
+  }
+  .stat-pill .val { font-size: 1.4rem; font-weight: 800; }
+  .stat-pill .lbl { font-size: .7rem; color: rgba(255,255,255,.5); text-transform: uppercase; font-weight: 600; }
+  /* review list */
+  .review-list {
+    margin: 20px 0 0;
+    text-align: left;
+  }
+  .review-list h3 { font-size: .9rem; font-weight: 700; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .review-item {
+    background: var(--card-dark);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border-left: 4px solid;
+    font-size: .88rem;
+    line-height: 1.4;
+  }
+  .review-item.ri-correct { border-color: var(--correct); }
+  .review-item.ri-wrong { border-color: var(--wrong); }
+  .review-item.ri-timeout { border-color: rgba(255,255,255,.25); }
+  .review-item .ri-q { color: rgba(255,255,255,.85); margin-bottom: 3px; font-weight: 600; }
+  .review-item .ri-ans { color: rgba(255,255,255,.5); font-size: .82rem; }
+  .review-item .ri-ans span.correct-ans { color: var(--correct); font-weight: 700; }
+  .review-item .ri-ans span.your-ans { color: var(--wrong); }
+  /* end buttons */
+  .end-btns { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .btn-replay {
+    padding: 15px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: opacity .2s;
+  }
+  .btn-replay:hover { opacity: .9; }
+  .btn-change {
+    padding: 13px;
+    border: 2px solid rgba(255,255,255,.2);
+    border-radius: var(--radius);
+    background: transparent;
+    color: #fff;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .btn-change:hover { border-color: rgba(255,255,255,.5); }
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; animation: fadeIn .2s ease; }
+  .modal-box {
+    background: var(--bg2);
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.6);
+  }
+  .modal-box h2 { font-size: 1.4rem; font-weight: 900; margin-bottom: 16px; }
+  .modal-box p, .modal-box li { font-size: .9rem; color: rgba(255,255,255,.75); line-height: 1.6; margin-bottom: 8px; }
+  .modal-box ul { padding-left: 20px; }
+  .modal-close {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 16px;
+  }
+  /* settings */
+  .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .settings-row label { font-size: .95rem; font-weight: 600; }
+  .toggle-switch {
+    position: relative;
+    width: 48px; height: 26px;
+  }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider {
+    position: absolute; inset:0;
+    background: rgba(255,255,255,.15);
+    border-radius: 13px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .toggle-slider:before {
+    content:'';
+    position:absolute;
+    height:20px;width:20px;
+    left:3px;top:3px;
+    background:#fff;
+    border-radius:50%;
+    transition: transform .2s;
+  }
+  input:checked + .toggle-slider { background: var(--accent); }
+  input:checked + .toggle-slider:before { transform: translateX(22px); }
+  .btn-reset-scores {
+    width:100%; padding:11px;
+    border:2px solid var(--wrong);
+    border-radius:10px;
+    background:transparent;
+    color:var(--wrong);
+    font-size:.9rem;
+    font-weight:700;
+    cursor:pointer;
+    margin-top:14px;
+    transition:background .2s;
+  }
+  .btn-reset-scores:hover { background:rgba(239,68,68,.12); }
+  /* ─── STREAK FIRE ─── */
+  .streak-fire {
+    position: fixed;
+    top: 0; left:0;
+    width:100%; height:100%;
+    pointer-events:none;
+    z-index: 50;
+    overflow:hidden;
+  }
+  .fire-particle {
+    position:absolute;
+    font-size:1.8rem;
+    animation: fireUp 1.2s ease forwards;
+  }
+  @keyframes fireUp {
+    0% { opacity:1; transform:translateY(0) scale(1); }
+    100% { opacity:0; transform:translateY(-120px) scale(.5); }
+  }
+  /* responsive */
+  @media (min-width: 480px) {
+    .q-text { font-size: 1.2rem; }
+    .end-score-big { font-size: 3.5rem; }
+  }
+  /* ─── PAUSE OVERLAY ─── */
+  .pause-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.75);
+    z-index: 300;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .pause-overlay.open { display: flex; }
+  .pause-overlay h2 { font-size: 2rem; font-weight: 900; }
+  .pause-overlay p { color: rgba(255,255,255,.65); font-size: .95rem; }
+  /* ─── PLAYER PROFILE ─── */
+  .profile-panel {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.75);
+    z-index: 250;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+  }
+  .profile-panel.open { display: flex; }
+  .profile-box {
+    background: var(--bg2);
+    border-radius: 20px;
+    padding: 28px 24px;
+    max-width: 480px;
+    width: 100%;
+    margin-top: 20px;
+  }
+  .profile-box h2 { font-size: 1.4rem; font-weight: 900; margin-bottom: 16px; }
+  .profile-name-row { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+  .profile-name-input {
+    flex: 1;
+    background: rgba(255,255,255,.1);
+    border: 2px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 700;
+    outline: none;
+  }
+  .profile-name-input:focus { border-color: var(--accent); }
+  .btn-save-name {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .profile-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .ps-pill {
+    background: rgba(255,255,255,.07);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .ps-pill .pv { font-size: 1.3rem; font-weight: 800; color: var(--accent2); }
+  .ps-pill .pl { font-size: .68rem; color: rgba(255,255,255,.5); text-transform: uppercase; font-weight: 600; margin-top: 2px; }
+  .profile-since { font-size: .78rem; color: rgba(255,255,255,.4); margin-bottom: 14px; }
+  /* ─── ACHIEVEMENTS ─── */
+  .ach-list { margin-top: 4px; }
+  .ach-item {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,.06);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    opacity: .4;
+    transition: opacity .3s;
+  }
+  .ach-item.unlocked { opacity: 1; }
+  .ach-item .ach-icon { font-size: 1.6rem; flex-shrink: 0; }
+  .ach-item .ach-text .ach-name { font-size: .9rem; font-weight: 700; }
+  .ach-item .ach-text .ach-desc { font-size: .78rem; color: rgba(255,255,255,.55); }
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card-dark);
+    border: 2px solid var(--gold);
+    border-radius: 14px;
+    padding: 12px 20px;
+    font-size: .9rem;
+    font-weight: 700;
+    color: #fff;
+    z-index: 400;
+    transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .4s;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  /* ─── SHARE BUTTON ─── */
+  .btn-share {
+    padding: 13px;
+    border: 2px solid rgba(255,255,255,.2);
+    border-radius: var(--radius);
+    background: transparent;
+    color: #fff;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .btn-share:hover { border-color: var(--accent2); }
+  /* ─── REDUCE MOTION ─── */
+  @media (prefers-reduced-motion: reduce) {
+    .fire-particle,
+    .score-delta.pop,
+    .hud-streak.pop,
+    .rank-badge,
+    .opt-btn.wrong { animation: none !important; }
+    .screen { animation: none !important; }
+    .timer-bar { transition: width .1s linear !important; }
+  }
+</style>
+
+<!--GAMESHELL_V1-->
+<script>window.GS_CONFIG={"id":"46-trivia-quiz","title":"Trivia Quiz","difficulties":["easy","normal","hard"],"howToPlay":"\u003cp>\u003cstrong>Goal:\u003c/strong> answer as many questions correctly as you can.\u003c/p>\u003cul>\u003cli>\u003cstrong>Controls:\u003c/strong> pick the right answer, sometimes against the clock.\u003c/li>\u003c/ul>","hints":["Eliminate the obviously-wrong options first.","Trust your first instinct on facts you know.","Don't overthink — manage the timer."]};</script>
+<script>
+/* ===========================================================================
+ * GameShell v1 — universal drop-in options overlay for single-file web games.
+ * Adds: Settings (Sound, Music, Difficulty, Theme, Leaderboard, How to Play,
+ * Reset) + an in-play control bar (Hint, Sound, Settings) with a rate-limited
+ * Hint (2 / 24h, refills on new game). Game-agnostic, namespaced, Shadow-DOM
+ * isolated, persisted per game. Safe to inject into any HTML game once.
+ * ======================================================================== */
+(function () {
+  "use strict";
+  if (window.__gsInstalled) return;
+  window.__gsInstalled = true;
+
+  /* ---------- per-game config (injected just above this script) ---------- */
+  var CFG = window.GS_CONFIG || {};
+  var GID = CFG.id || (location.pathname.split("/").filter(Boolean).pop() || "game").replace(/\.html?$/i, "");
+  var TITLE = CFG.title || document.title || "Game";
+  var DIFFS = (CFG.difficulties && CFG.difficulties.length) ? CFG.difficulties : ["easy", "normal", "hard"];
+  var HOWTO = CFG.howToPlay || "<p>Use the on-screen controls (or your keyboard) to play. Your progress is saved automatically on this device.</p>";
+  var TIPS = (CFG.hints && CFG.hints.length) ? CFG.hints.slice() : [
+    "Take your time — there's no rush.",
+    "Plan one move ahead before you commit.",
+    "Stuck? Try a new game from Settings to reset and get fresh hints."
+  ];
+  var HINT_MAX = CFG.hintMax || 2;
+  var WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  /* ----------------------------- storage --------------------------------- */
+  function k(name) { return "gs:" + GID + ":" + name; }
+  function load(name, def) {
+    try { var v = JSON.parse(localStorage.getItem(k(name))); return v == null ? def : v; }
+    catch (e) { return def; }
+  }
+  function save(name, val) { try { localStorage.setItem(k(name), JSON.stringify(val)); } catch (e) {} }
+
+  var SDEF = { v: 1, sound: true, music: true, difficulty: (DIFFS.indexOf("normal") >= 0 ? "normal" : DIFFS[0]), theme: "system" };
+  var settings = Object.assign({}, SDEF, load("settings", {}));
+  if (DIFFS.indexOf(settings.difficulty) < 0) settings.difficulty = SDEF.difficulty;
+  function persist() { save("settings", settings); }
+
+  /* ------------------------- tiny event emitter -------------------------- */
+  var subs = {};
+  function on(ev, fn) { (subs[ev] = subs[ev] || []).push(fn); return function () { subs[ev] = (subs[ev] || []).filter(function (f) { return f !== fn; }); }; }
+  function emit(ev, data) {
+    (subs[ev] || []).forEach(function (fn) { try { fn(data); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("gs:" + ev, { detail: data })); } catch (e) {}
+  }
+
+  /* ============================== AUDIO ================================== */
+  /* Sound = master (everything). Music = looping media + opt-in music gain. */
+  var soundOn = settings.sound, musicOn = settings.music;
+  var acRegistry = [];
+
+  (function patchWebAudio() {
+    var Orig = window.AudioContext || window.webkitAudioContext;
+    if (!Orig || Orig.__gsPatched) return;
+    function Patched() {
+      var ctx = arguments.length ? new Orig(arguments[0]) : new Orig();
+      try {
+        var realDest = ctx.destination;
+        var sfx = ctx.createGain(); sfx.connect(realDest);
+        var music = ctx.createGain(); music.connect(realDest);
+        sfx.gain.value = soundOn ? 1 : 0;
+        music.gain.value = (soundOn && musicOn) ? 1 : 0;
+        Object.defineProperty(ctx, "destination", { get: function () { return sfx; }, configurable: true });
+        ctx.__gsSfx = sfx; ctx.__gsMusic = music; ctx.__gsRealDest = realDest;
+        acRegistry.push(ctx);
+      } catch (e) {}
+      return ctx;
+    }
+    try { Patched.prototype = Orig.prototype; } catch (e) {}
+    Patched.__gsPatched = true;
+    try { window.AudioContext = Patched; } catch (e) {}
+    try { window.webkitAudioContext = Patched; } catch (e) {}
+  })();
+
+  var mediaEls = [];
+  (function patchMedia() {
+    if (!window.HTMLMediaElement || HTMLMediaElement.__gsPatched) return;
+    var proto = HTMLMediaElement.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "muted");
+    if (d && d.get && d.set) {
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get: function () { return (!soundOn) || (this.loop && !musicOn) || d.get.call(this); },
+        set: function (v) { try { d.set.call(this, v); } catch (e) {} }
+      });
+    }
+    var op = proto.play;
+    proto.play = function () {
+      if (mediaEls.indexOf(this) < 0) mediaEls.push(this);
+      try { this.volume = this.volume; } catch (e) {}
+      return op.apply(this, arguments);
+    };
+    HTMLMediaElement.__gsPatched = true;
+  })();
+
+  function applyAudio() {
+    acRegistry.forEach(function (ctx) {
+      try {
+        if (ctx.__gsSfx) ctx.__gsSfx.gain.setValueAtTime(soundOn ? 1 : 0, ctx.currentTime);
+        if (ctx.__gsMusic) ctx.__gsMusic.gain.setValueAtTime((soundOn && musicOn) ? 1 : 0, ctx.currentTime);
+      } catch (e) {}
+    });
+    mediaEls.forEach(function (el) { try { el.muted = el.muted; } catch (e) {} });
+  }
+
+  /* ============================== THEME ================================== */
+  function applyTheme() {
+    var t = settings.theme;
+    var root = document.documentElement;
+    root.classList.remove("gs-theme-light", "gs-theme-dark", "gs-theme-system");
+    root.classList.add("gs-theme-" + t);
+    var eff = t;
+    if (t === "system") {
+      eff = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    try { root.style.colorScheme = (t === "system") ? "light dark" : t; } catch (e) {}
+    var bd = document.getElementById("gs-backdrop");
+    if (bd) bd.style.background = (eff === "dark") ? "#0e1014" : "#eef1f6";
+    if (host) host.setAttribute("data-theme", eff);
+    emit("theme", { theme: t, effective: eff });
+  }
+  if (window.matchMedia) {
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (settings.theme === "system") applyTheme(); }); }
+    catch (e) {}
+  }
+
+  /* ============================== HINTS ================================== */
+  function hintState() {
+    var s = load("hint", { v: 1, spentAt: [], puzzleId: "", lastSeen: Date.now() });
+    var now = Date.now();
+    // anti-tamper: clamp future stamps; ignore large backward clock jumps
+    if (s.lastSeen && now < s.lastSeen - 60000) { s.spentAt = (s.spentAt || []).map(function () { return now; }); }
+    s.spentAt = (s.spentAt || []).map(function (t) { return t > now ? now : t; }).filter(function (t) { return now - t < WINDOW_MS; });
+    s.lastSeen = now;
+    return s;
+  }
+  function hintsLeft() { var s = hintState(); save("hint", s); return Math.max(0, HINT_MAX - s.spentAt.length); }
+  function nextHintMs() {
+    var s = hintState();
+    if (s.spentAt.length < HINT_MAX) return 0;
+    var oldest = Math.min.apply(null, s.spentAt);
+    return Math.max(0, WINDOW_MS - (Date.now() - oldest));
+  }
+  function spendHint() {
+    var s = hintState();
+    if (HINT_MAX - s.spentAt.length <= 0) return false;
+    s.spentAt.push(Date.now()); save("hint", s); return true;
+  }
+  function refillHints(puzzleId) {
+    var s = hintState();
+    if (puzzleId != null && String(puzzleId) === String(s.puzzleId)) { save("hint", s); return; } // same board: no mint
+    s.spentAt = []; s.puzzleId = (puzzleId == null ? "" : String(puzzleId)); save("hint", s);
+    updateHintBadge();
+  }
+  var tipIdx = 0;
+  function provideHintText() {
+    if (typeof CFG.onHint === "function") { try { var r = CFG.onHint(); if (r) return String(r); } catch (e) {} }
+    var t = TIPS[tipIdx % TIPS.length]; tipIdx++; return t;
+  }
+
+  /* ============================ LEADERBOARD ============================= */
+  function getBoard(diff) { var b = load("scores", { v: 1, boards: {} }); return (b.boards && b.boards[diff]) || []; }
+  function submitScore(score, opts) {
+    score = Number(score); if (!isFinite(score)) return;
+    opts = opts || {};
+    var diff = opts.difficulty || settings.difficulty;
+    var name = (opts.name || "You").toString().slice(0, 12);
+    var b = load("scores", { v: 1, boards: {} }); b.boards = b.boards || {};
+    var list = b.boards[diff] || [];
+    list.push({ name: name, score: score, ts: Date.now() });
+    list.sort(function (a, c) { return c.score - a.score; });
+    b.boards[diff] = list.slice(0, 10);
+    save("scores", b);
+    emit("score", { score: score, difficulty: diff });
+    return b.boards[diff];
+  }
+
+  /* ============================== UI SHELL ============================== */
+  var host, root, $bar, $hintBtn, $soundBtn, $modal, $panelHost;
+  var lastFocus = null;
+
+  var CSS = ''
+    + ':host{all:initial}'
+    + '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}'
+    + '.bar{position:fixed;top:0;right:0;display:flex;gap:6px;padding:8px;'
+    + 'padding-top:max(8px,env(safe-area-inset-top));padding-right:max(8px,env(safe-area-inset-right));z-index:5}'
+    + '.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;'
+    + 'min-width:44px;min-height:44px;width:44px;height:44px;border-radius:12px;font-size:20px;line-height:1;'
+    + 'background:var(--c-btn);color:var(--c-tx);box-shadow:0 2px 8px rgba(0,0,0,.25);'
+    + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;transition:transform .08s,background .15s}'
+    + '.btn:hover{background:var(--c-btnH)}.btn:active{transform:scale(.92)}'
+    + '.btn:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;'
+    + 'background:var(--c-acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.btn.off{opacity:.45}'
+    + '.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:10;'
+    + 'padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}'
+    + '.scrim.open{display:flex}'
+    + '.modal{width:min(420px,100%);max-height:88vh;overflow:auto;background:var(--c-bg);color:var(--c-tx);'
+    + 'border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:18px;-webkit-overflow-scrolling:touch}'
+    + '.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+    + '.mtitle{font-size:18px;font-weight:800;letter-spacing:.2px}'
+    + '.x{all:unset;cursor:pointer;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--c-tx)}'
+    + '.x:hover{background:var(--c-btn)}.x:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.sub{font-size:12px;color:var(--c-mut);margin:-2px 0 12px}'
+    + '.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-top:1px solid var(--c-line)}'
+    + '.row .lab{font-size:15px;font-weight:600}.row .desc{font-size:12px;color:var(--c-mut);margin-top:2px}'
+    + '.seg{display:flex;gap:4px;background:var(--c-btn);padding:4px;border-radius:12px}'
+    + '.seg button{all:unset;cursor:pointer;padding:8px 12px;min-height:36px;border-radius:9px;font-size:13px;font-weight:600;color:var(--c-mut);touch-action:manipulation}'
+    + '.seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.seg button:focus-visible{outline:2px solid var(--c-acc)}'
+    + '.sw{all:unset;cursor:pointer;width:52px;height:30px;border-radius:16px;background:var(--c-line);position:relative;transition:background .15s;flex:0 0 auto}'
+    + '.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}'
+    + '.sw[aria-checked=true]{background:var(--c-acc)}.sw[aria-checked=true]::after{left:25px}'
+    + '.sw:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.lbtn{all:unset;cursor:pointer;display:block;width:100%;text-align:left;padding:13px 12px;margin-top:8px;border-radius:12px;'
+    + 'background:var(--c-btn);color:var(--c-tx);font-size:15px;font-weight:600;touch-action:manipulation}'
+    + '.lbtn:hover{background:var(--c-btnH)}.lbtn:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.lbtn.danger{color:#ff6b6b}'
+    + '.back{all:unset;cursor:pointer;font-size:14px;color:var(--c-acc);font-weight:700;margin-bottom:8px;display:inline-flex;gap:4px;align-items:center}'
+    + '.howto{font-size:14px;line-height:1.6}.howto p{margin:8px 0}.howto strong{color:var(--c-acc)}'
+    + '.howto ul{margin:8px 0;padding-left:20px}.howto li{margin:4px 0}'
+    + '.lbtabs{display:flex;gap:6px;margin:6px 0 10px}'
+    + '.lbtabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--c-btn);font-size:13px;font-weight:600;color:var(--c-mut)}'
+    + '.lbtabs button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.lblist{list-style:none;margin:0;padding:0}'
+    + '.lblist li{display:flex;justify-content:space-between;padding:9px 6px;border-top:1px solid var(--c-line);font-size:14px}'
+    + '.lblist li span:first-child{color:var(--c-mut)}'
+    + '.empty{color:var(--c-mut);font-size:14px;text-align:center;padding:18px}'
+    + '.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'background:var(--c-bg);color:var(--c-tx);border:1px solid var(--c-line);padding:12px 16px;border-radius:12px;'
+    + 'max-width:86vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
+    + ':host([data-theme=dark]){--c-bg:#171a21;--c-tx:#f2f4f8;--c-mut:#9aa3b2;--c-line:#2c313c;--c-btn:#222732;--c-btnH:#2c333f;--c-acc:#4f8cff}'
+    + ':host([data-theme=light]){--c-bg:#ffffff;--c-tx:#15181f;--c-mut:#646b7a;--c-line:#e6e8ee;--c-btn:#eef1f6;--c-btnH:#e3e7ef;--c-acc:#2f6bff}'
+    + '@media (prefers-reduced-motion: reduce){*{transition:none!important}}';
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function buildUI() {
+    // backdrop (light DOM, behind everything)
+    var bd = el("div", { id: "gs-backdrop" });
+    bd.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none";
+    document.body.appendChild(bd);
+
+    host = el("div", { id: "gs-host" });
+    host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;isolation:isolate";
+    document.body.appendChild(host);
+    root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    var style = el("style"); style.textContent = CSS; root.appendChild(style);
+
+    // ---- in-play control bar: Hint · Sound · Settings ----
+    $bar = el("div", { class: "bar" });
+    $hintBtn = el("button", { class: "btn", "aria-label": "Hint", title: "Hint" }, "💡");
+    $hintBtn.appendChild(el("span", { class: "badge" }, String(HINT_MAX)));
+    $soundBtn = el("button", { class: "btn", "aria-label": "Toggle sound", title: "Sound" }, "🔊");
+    var $setBtn = el("button", { class: "btn", "aria-label": "Settings", title: "Settings" }, "⚙️");
+    $bar.appendChild($hintBtn); $bar.appendChild($soundBtn); $bar.appendChild($setBtn);
+    root.appendChild($bar);
+
+    // ---- modal scrim + container ----
+    $modal = el("div", { class: "scrim", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
+    $panelHost = el("div", { class: "modal" });
+    $modal.appendChild($panelHost);
+    root.appendChild($modal);
+
+    $hintBtn.addEventListener("click", doHint);
+    $soundBtn.addEventListener("click", function () { setSound(!soundOn); });
+    $setBtn.addEventListener("click", openSettings);
+    $modal.addEventListener("click", function (e) { if (e.target === $modal) closeModal(); });
+    root.addEventListener("keydown", function (e) { if (e.key === "Escape" && $modal.classList.contains("open")) closeModal(); trapFocus(e); });
+
+    updateSoundBtn(); updateHintBadge();
+  }
+
+  function updateSoundBtn() { if ($soundBtn) { $soundBtn.textContent = soundOn ? "🔊" : "🔇"; $soundBtn.classList.toggle("off", !soundOn); } }
+  function updateHintBadge() {
+    if (!$hintBtn) return;
+    var left = hintsLeft();
+    var b = $hintBtn.querySelector(".badge");
+    if (b) b.textContent = String(left);
+    $hintBtn.classList.toggle("off", left === 0);
+  }
+
+  /* ----------------------------- panels --------------------------------- */
+  function openModal(render) {
+    lastFocus = document.activeElement;
+    render();
+    $modal.classList.add("open");
+    var f = $panelHost.querySelector("button,[tabindex],input"); if (f) f.focus();
+  }
+  function closeModal() {
+    $modal.classList.remove("open");
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  }
+  function trapFocus(e) {
+    if (e.key !== "Tab" || !$modal.classList.contains("open")) return;
+    var f = $panelHost.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function header(title, withBack) {
+    var h = el("div", { class: "mhead" });
+    var left = el("div");
+    if (withBack) { var b = el("button", { class: "back", "aria-label": "Back to settings" }, "‹ Back"); b.addEventListener("click", openSettings); left.appendChild(b); }
+    left.appendChild(el("div", { class: "mtitle" }, title));
+    var x = el("button", { class: "x", "aria-label": "Close" }, "✕"); x.addEventListener("click", closeModal);
+    h.appendChild(left); h.appendChild(x); return h;
+  }
+
+  function renderSettings() {
+    $panelHost.innerHTML = "";
+    $panelHost.setAttribute("aria-label", "Settings");
+    $panelHost.appendChild(header("Settings"));
+    $panelHost.appendChild(el("div", { class: "sub" }, TITLE));
+
+    // Sound
+    $panelHost.appendChild(toggleRow("Sound", "All game audio", soundOn, function (v) { setSound(v); }));
+    // Music
+    $panelHost.appendChild(toggleRow("Music", "Background music only", musicOn, function (v) { setMusic(v); }));
+
+    // Difficulty
+    var dr = el("div", { class: "row" });
+    var dl = el("div"); dl.appendChild(el("div", { class: "lab" }, "Difficulty"));
+    dl.appendChild(el("div", { class: "desc" }, "Applies on your next new game"));
+    dr.appendChild(dl);
+    dr.appendChild(segment(DIFFS.map(cap), DIFFS.indexOf(settings.difficulty), function (i) {
+      settings.difficulty = DIFFS[i]; persist(); emit("difficulty", { difficulty: settings.difficulty });
+    }));
+    $panelHost.appendChild(dr);
+
+    // Theme
+    var tr = el("div", { class: "row" });
+    var tl = el("div"); tl.appendChild(el("div", { class: "lab" }, "Theme"));
+    tl.appendChild(el("div", { class: "desc" }, "System · Light · Dark"));
+    tr.appendChild(tl);
+    var TH = ["system", "light", "dark"];
+    tr.appendChild(segment(["System", "Light", "Dark"], TH.indexOf(settings.theme), function (i) {
+      settings.theme = TH[i]; persist(); applyTheme();
+    }));
+    $panelHost.appendChild(tr);
+
+    // Leaderboard / How to Play / Reset
+    var lb = el("button", { class: "lbtn" }, "🏆  Leaderboard"); lb.addEventListener("click", function () { openModal(renderLeaderboard); });
+    var ht = el("button", { class: "lbtn" }, "❓  How to Play"); ht.addEventListener("click", function () { openModal(renderHowTo); });
+    var rs = el("button", { class: "lbtn danger" }, "↺  Reset progress"); rs.addEventListener("click", resetProgress);
+    $panelHost.appendChild(lb); $panelHost.appendChild(ht); $panelHost.appendChild(rs);
+  }
+
+  function renderHowTo() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("How to Play", true));
+    $panelHost.appendChild(el("div", { class: "howto" }, HOWTO));
+  }
+
+  var lbActive = null;
+  function renderLeaderboard() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("Leaderboard", true));
+    if (lbActive == null) lbActive = settings.difficulty;
+    var tabs = el("div", { class: "lbtabs" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { "aria-pressed": String(d === lbActive) }, cap(d));
+      b.addEventListener("click", function () { lbActive = d; renderLeaderboard(); });
+      tabs.appendChild(b);
+    });
+    $panelHost.appendChild(tabs);
+    var list = getBoard(lbActive);
+    if (!list.length) { $panelHost.appendChild(el("div", { class: "empty" }, "No scores yet.\nPlay a game to set a record!")); return; }
+    var ul = el("ul", { class: "lblist" });
+    list.forEach(function (r, i) {
+      var li = el("li");
+      li.appendChild(el("span", null, (i + 1) + ". " + r.name));
+      li.appendChild(el("span", null, String(r.score)));
+      ul.appendChild(li);
+    });
+    $panelHost.appendChild(ul);
+  }
+
+  function toggleRow(lab, desc, val, onChange) {
+    var r = el("div", { class: "row" });
+    var l = el("div"); l.appendChild(el("div", { class: "lab" }, lab)); l.appendChild(el("div", { class: "desc" }, desc));
+    var sw = el("button", { class: "sw", role: "switch", "aria-checked": String(!!val), "aria-label": lab });
+    sw.addEventListener("click", function () { var nv = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(nv)); onChange(nv); });
+    r.appendChild(l); r.appendChild(sw); return r;
+  }
+  function segment(labels, active, onPick) {
+    var s = el("div", { class: "seg", role: "group" });
+    labels.forEach(function (lab, i) {
+      var b = el("button", { "aria-pressed": String(i === active) }, lab);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(s.children, function (c, j) { c.setAttribute("aria-pressed", String(j === i)); });
+        onPick(i);
+      });
+      s.appendChild(b);
+    });
+    return s;
+  }
+
+  /* --------------------------- behaviours -------------------------------- */
+  function setSound(v) { soundOn = settings.sound = !!v; persist(); applyAudio(); updateSoundBtn(); emit("sound", { on: soundOn }); }
+  function setMusic(v) { musicOn = settings.music = !!v; persist(); applyAudio(); emit("music", { on: musicOn }); }
+
+  function doHint() {
+    var left = hintsLeft();
+    if (left <= 0) {
+      var ms = nextHintMs(); var h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000);
+      toast("No hints left. Next in " + h + "h " + m + "m — or start a new game.");
+      return;
+    }
+    if (!spendHint()) return;
+    updateHintBadge();
+    toast("💡 " + provideHintText());
+    emit("hint", { left: hintsLeft() });
+  }
+
+  function resetProgress() {
+    if (!confirm("Reset ALL saved progress and high scores for " + TITLE + "? This cannot be undone.")) return;
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (key && key.indexOf("gs:" + GID + ":") === 0) rm.push(key); }
+      rm.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {}
+    emit("reset", {});
+    toast("Progress reset. Reloading…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+
+  var toastT;
+  function toast(msg) {
+    var t = root.querySelector(".toast");
+    if (!t) { t = el("div", { class: "toast" }); root.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+
+  function openSettings() { openModal(renderSettings); }
+
+  /* ----------------------------- public API ------------------------------ */
+  window.GameShell = {
+    version: 1,
+    config: function (o) { Object.assign(CFG, o || {}); if (o) { if (o.howToPlay) HOWTO = o.howToPlay; if (o.hints) TIPS = o.hints.slice(); } return this; },
+    getDifficulty: function () { return settings.difficulty; },
+    onDifficulty: function (fn) { return on("difficulty", function (d) { fn(d.difficulty); }); },
+    setDifficulty: function (d) { if (DIFFS.indexOf(d) >= 0) { settings.difficulty = d; persist(); emit("difficulty", { difficulty: d }); } },
+    isSoundOn: function () { return soundOn; },
+    isMusicOn: function () { return musicOn; },
+    isMuted: function () { return !soundOn; },
+    submitScore: submitScore,
+    getScores: getBoard,
+    newGame: function (puzzleId) { refillHints(puzzleId); emit("newgame", { puzzleId: puzzleId }); },
+    useHint: doHint,
+    hintsLeft: hintsLeft,
+    onHint: function (fn) { CFG.onHint = fn; return this; },
+    openSettings: openSettings,
+    openHowToPlay: function () { openModal(renderHowTo); },
+    openLeaderboard: function () { openModal(renderLeaderboard); },
+    on: on,
+    routeMusic: function (node, ctx) { try { if (ctx && ctx.__gsMusic && node && node.connect) { node.connect(ctx.__gsMusic); return true; } } catch (e) {} return false; }
+  };
+
+  /* ------------------------------ boot ----------------------------------- */
+  function boot() {
+    // ensure a viewport meta exists for mobile
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = el("meta", { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" });
+      document.head.appendChild(m);
+    }
+    buildUI();
+    applyTheme();
+    applyAudio();
+    emit("ready", { id: GID });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+<!--/GAMESHELL_V1-->
+</head>
+<body>
+<div class="top-bar">
+  <h1>Trivia <span>Quiz</span></h1>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-icon" id="btnProfile" title="Player Profile" aria-label="Player Profile">👤</button>
+    <button class="btn-icon" id="btnSettings" title="Settings" aria-label="Settings">⚙️</button>
+    <button class="btn-icon" id="btnMute" title="Toggle Sound" aria-label="Toggle Sound">🔊</button>
+  </div>
+</div>
+
+<div class="main">
+  <!-- START SCREEN -->
+  <div id="screenStart" class="screen active">
+    <div class="hero">
+      <div class="trophy">🏆</div>
+      <h2>Test Your Knowledge</h2>
+      <p>Pick a category and put your brain to the test!</p>
+    </div>
+
+    <div class="section-label">Choose a Category</div>
+    <div class="cat-grid" id="catGrid"></div>
+
+    <div class="section-label">Choose Difficulty</div>
+    <div class="diff-row">
+      <button class="diff-btn easy" data-diff="easy">😊 Easy</button>
+      <button class="diff-btn medium" data-diff="medium">🤔 Medium</button>
+      <button class="diff-btn hard" data-diff="hard">🔥 Hard</button>
+    </div>
+
+    <button class="btn-start" id="btnStart" disabled>Select a Category to Start</button>
+    <div class="how-link" id="btnHowTo">How to Play</div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screenGame" class="screen" role="main" aria-label="Quiz Game">
+    <div class="hud">
+      <div class="hud-cat" id="hudCat" aria-live="polite"></div>
+      <div class="hud-progress" id="hudProg" aria-live="polite">Q 1/10</div>
+      <div class="hud-score" id="hudScore" aria-live="polite" aria-label="Score">0</div>
+      <div class="hud-streak" id="hudStreak" aria-live="polite">🔥 0</div>
+      <button class="btn-icon" id="btnPause" title="Pause" aria-label="Pause game" style="background:rgba(255,255,255,.1);border:none;color:#fff;border-radius:10px;width:36px;height:36px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">⏸</button>
+    </div>
+    <div class="timer-wrap" role="progressbar" aria-label="Time remaining"><div class="timer-bar" id="timerBar"></div></div>
+    <div class="q-card" aria-live="assertive">
+      <div class="q-num" id="qNum"></div>
+      <div class="q-text" id="qText"></div>
+    </div>
+    <div class="options" id="optionList" role="group" aria-label="Answer choices"></div>
+    <div class="explanation" id="explanation"></div>
+    <div class="action-row">
+      <button class="btn-lifeline" id="btnLifeline">✂️ 50/50</button>
+      <button class="btn-next" id="btnNext">Next Question →</button>
+    </div>
+  </div>
+
+  <!-- END SCREEN -->
+  <div id="screenEnd" class="screen">
+    <div class="end-wrap">
+      <div class="rank-badge" id="endBadge"></div>
+      <div class="rank-label" id="endRank"></div>
+      <div class="end-score-big" id="endScore"></div>
+      <div class="end-pct" id="endPct"></div>
+      <div id="newRecord" class="new-record" style="display:none">🎉 New Record!</div>
+      <div class="end-stats">
+        <div class="stat-pill"><div class="val" id="statCorrect"></div><div class="lbl">Correct</div></div>
+        <div class="stat-pill"><div class="val" id="statStreak"></div><div class="lbl">Best Streak</div></div>
+        <div class="stat-pill"><div class="val" id="statTime"></div><div class="lbl">Avg Time</div></div>
+      </div>
+      <div class="end-btns">
+        <button class="btn-replay" id="btnReplay">🔄 Play Again (Same Settings)</button>
+        <button class="btn-share" id="btnShare">📤 Share Score</button>
+        <button class="btn-change" id="btnChange">🏠 Change Category</button>
+      </div>
+      <div class="review-list">
+        <h3>Question Review</h3>
+        <div id="reviewItems"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY MODAL -->
+<div class="modal-overlay" id="modalHowTo">
+  <div class="modal-box">
+    <h2>How to Play 📖</h2>
+    <ul>
+      <li>Pick a <strong>category</strong> and <strong>difficulty</strong>, then tap Start.</li>
+      <li>Answer <strong>10 questions</strong> — pick the correct option before the timer runs out.</li>
+      <li><strong>Faster = more points!</strong> A time bonus is added for quick answers.</li>
+      <li>Build a <strong>streak</strong> of correct answers for a score multiplier (up to ×2).</li>
+      <li>Use <strong>✂️ 50/50</strong> once per game to remove two wrong answers.</li>
+      <li>Your <strong>category high score</strong> is saved automatically.</li>
+    </ul>
+    <table style="width:100%;margin:12px 0;font-size:.82rem;color:rgba(255,255,255,.7);border-collapse:collapse;">
+      <tr><th style="text-align:left;padding:4px 0">Difficulty</th><th>Base pts</th><th>Time limit</th></tr>
+      <tr><td>😊 Easy</td><td>100</td><td>20s</td></tr>
+      <tr><td>🤔 Medium</td><td>200</td><td>15s</td></tr>
+      <tr><td>🔥 Hard</td><td>300</td><td>10s</td></tr>
+    </table>
+    <p><strong>Streak multiplier:</strong> 3–4 = ×1.25 · 5–6 = ×1.5 · 7+ = ×2.0</p>
+    <button class="modal-close" id="modalHowToClose">Got it! Let's Play</button>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modalSettings">
+  <div class="modal-box">
+    <h2>⚙️ Settings</h2>
+    <div class="settings-row">
+      <label>Sound Effects</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="soundToggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <button class="btn-reset-scores" id="btnResetScores">Reset All High Scores</button>
+    <button class="modal-close" id="modalSettingsClose">Close</button>
+  </div>
+</div>
+
+<!-- Score delta element -->
+<div class="score-delta" id="scoreDelta" aria-hidden="true"></div>
+<!-- Streak fire container -->
+<div class="streak-fire" id="streakFire" aria-hidden="true"></div>
+
+<!-- PAUSE OVERLAY -->
+<div class="pause-overlay" id="pauseOverlay" role="dialog" aria-modal="true" aria-label="Game Paused">
+  <h2>⏸ Paused</h2>
+  <p>Tab inactive — timer paused. Click to resume.</p>
+  <button class="modal-close" id="btnResume" style="max-width:220px;margin-top:8px;">▶ Resume</button>
+</div>
+
+<!-- PLAYER PROFILE PANEL -->
+<div class="profile-panel" id="profilePanel" role="dialog" aria-modal="true" aria-label="Player Profile">
+  <div class="profile-box">
+    <h2>👤 Your Profile</h2>
+    <div class="profile-name-row">
+      <input class="profile-name-input" id="profileNameInput" type="text" maxlength="24" placeholder="Your name" aria-label="Display name">
+      <button class="btn-save-name" id="btnSaveName">Save</button>
+    </div>
+    <div class="profile-stats-grid">
+      <div class="ps-pill"><div class="pv" id="psGames">0</div><div class="pl">Games</div></div>
+      <div class="ps-pill"><div class="pv" id="psCorrect">0</div><div class="pl">Correct</div></div>
+      <div class="ps-pill"><div class="pv" id="psStreak">0</div><div class="pl">Best Streak</div></div>
+      <div class="ps-pill"><div class="pv" id="psScore">0</div><div class="pl">Total Score</div></div>
+      <div class="ps-pill"><div class="pv" id="psWinRate">0%</div><div class="pl">Win Rate</div></div>
+      <div class="ps-pill"><div class="pv" id="psAch">0</div><div class="pl">Achievements</div></div>
+    </div>
+    <div class="profile-since" id="profileSince"></div>
+    <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.4);margin-bottom:8px;">Achievements</div>
+    <div class="ach-list" id="achList"></div>
+    <button class="modal-close" id="profileClose">Close</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// QUESTION BANK  (150 questions, 25 per category × 3 diffs)
+// ════════════════════════════════════════════════════════════
+const QUESTIONS = {
+  general: {
+    easy: [
+      { q:"What color is the sky on a clear day?", opts:["Blue","Green","Red","Yellow"], c:0, e:"The sky appears blue due to Rayleigh scattering of sunlight by the atmosphere." },
+      { q:"How many days are in a week?", opts:["5","6","7","8"], c:2, e:"A week consists of 7 days." },
+      { q:"What is the capital of France?", opts:["Berlin","Madrid","Paris","Rome"], c:2, e:"Paris has been the capital of France since the 10th century." },
+      { q:"How many sides does a triangle have?", opts:["2","3","4","5"], c:1, e:"A triangle is a polygon with exactly 3 sides." },
+      { q:"What animal is known as the 'King of the Jungle'?", opts:["Tiger","Elephant","Lion","Cheetah"], c:2, e:"The lion is traditionally called the King of the Jungle despite living mostly in grasslands." },
+      { q:"What is the largest planet in our solar system?", opts:["Saturn","Neptune","Earth","Jupiter"], c:3, e:"Jupiter is the largest planet, with a mass more than twice all other planets combined." },
+      { q:"How many legs does a spider have?", opts:["6","8","10","4"], c:1, e:"All spiders have 8 legs — they are arachnids, not insects." },
+      { q:"What primary color do you get when mixing blue and yellow?", opts:["Purple","Orange","Green","Brown"], c:2, e:"Mixing blue and yellow paint or pigment produces green." },
+      { q:"Which planet is closest to the Sun?", opts:["Venus","Earth","Mercury","Mars"], c:2, e:"Mercury is the innermost planet of the solar system." },
+      { q:"What is the boiling point of water at sea level (°C)?", opts:["90°C","95°C","100°C","110°C"], c:2, e:"Water boils at 100°C (212°F) at standard atmospheric pressure." },
+    ],
+    medium: [
+      { q:"What is the chemical symbol for gold?", opts:["Go","Gd","Au","Ag"], c:2, e:"Gold's symbol Au comes from the Latin word 'aurum'." },
+      { q:"How many bones are in an adult human body?", opts:["196","206","216","226"], c:1, e:"Adults have 206 bones; babies are born with around 270, which fuse over time." },
+      { q:"What is the smallest country in the world by area?", opts:["Monaco","San Marino","Vatican City","Liechtenstein"], c:2, e:"Vatican City covers only ~0.44 km² inside Rome, Italy." },
+      { q:"In which year did the Berlin Wall fall?", opts:["1985","1987","1989","1991"], c:2, e:"The Berlin Wall fell on November 9, 1989." },
+      { q:"What is the hardest natural substance on Earth?", opts:["Steel","Quartz","Diamond","Titanium"], c:2, e:"Diamond rates 10 on the Mohs hardness scale — the maximum." },
+      { q:"Which ocean is the largest?", opts:["Atlantic","Indian","Arctic","Pacific"], c:3, e:"The Pacific Ocean covers about 165 million km², more than all land combined." },
+      { q:"What language has the most native speakers worldwide?", opts:["English","Hindi","Spanish","Mandarin Chinese"], c:3, e:"Mandarin Chinese has approximately 920 million native speakers." },
+      { q:"What is the square root of 144?", opts:["11","12","13","14"], c:1, e:"12 × 12 = 144, so the square root of 144 is 12." },
+    ],
+    hard: [
+      { q:"What is the only country that is also a continent?", opts:["Greenland","Australia","Antarctica","Iceland"], c:1, e:"Australia is both a continent and a sovereign nation." },
+      { q:"How many symphonies did Beethoven compose?", opts:["7","8","9","10"], c:2, e:"Beethoven composed 9 symphonies; the 9th famously features 'Ode to Joy'." },
+      { q:"What is the approximate circumference of the Earth in km?", opts:["30,075","38,000","40,075","45,000"], c:2, e:"Earth's circumference at the equator is approximately 40,075 km." },
+      { q:"Which element has atomic number 79?", opts:["Silver","Platinum","Mercury","Gold"], c:3, e:"Gold (Au) has atomic number 79 on the periodic table." },
+      { q:"What is the speed of light in a vacuum (km/s)?", opts:["200,000","299,792","350,000","150,000"], c:1, e:"Light travels at approximately 299,792 km/s in a vacuum." },
+      { q:"In what year was the Magna Carta signed?", opts:["1066","1215","1348","1492"], c:1, e:"King John of England sealed the Magna Carta at Runnymede on June 15, 1215." },
+      { q:"Which gas makes up approximately 78% of Earth's atmosphere?", opts:["Oxygen","Argon","Carbon dioxide","Nitrogen"], c:3, e:"Nitrogen (N₂) constitutes about 78% of Earth's atmosphere." },
+      { q:"What is the name of the theorem that states no consistent axiomatic system can prove all truths about arithmetic?", opts:["Fermat's Last Theorem","Gödel's Incompleteness Theorem","Riemann Hypothesis","Cantor's Theorem"], c:1, e:"Gödel's Incompleteness Theorems (1931) show that any sufficiently powerful formal system has true unprovable statements." },
+      { q:"What is the unit of electrical resistance?", opts:["Volt","Ampere","Watt","Ohm"], c:3, e:"The ohm (Ω), named after Georg Ohm, is the SI unit of electrical resistance." },
+      { q:"Which particle has no electric charge and was theorized to allow the Sun to shine?", opts:["Positron","Muon","Neutrino","Tau"], c:2, e:"Neutrinos are electrically neutral and nearly massless particles produced in nuclear reactions like those in the Sun." },
+      { q:"What is the Coriolis effect?", opts:["Tidal force from Moon","Deflection of moving objects by Earth's rotation","Atmospheric pressure gradient","Magnetic pole shift"], c:1, e:"The Coriolis effect causes moving objects (like wind) to deflect right in the Northern Hemisphere due to Earth's rotation." },
+      { q:"What is the name of the boundary beyond which nothing can escape a black hole?", opts:["Photon sphere","Ergosphere","Event horizon","Schwarzschild radius"], c:2, e:"The event horizon is the point of no return around a black hole — crossing it means no escape, even for light." },
+    ]
+  },
+  science: {
+    easy: [
+      { q:"What gas do plants absorb from the air during photosynthesis?", opts:["Oxygen","Nitrogen","Carbon Dioxide","Hydrogen"], c:2, e:"Plants absorb CO₂ and release oxygen as a byproduct of photosynthesis." },
+      { q:"What is the center of an atom called?", opts:["Shell","Electron","Nucleus","Core"], c:2, e:"The nucleus contains protons and neutrons at the center of an atom." },
+      { q:"What force keeps planets in orbit around the Sun?", opts:["Magnetism","Gravity","Electricity","Friction"], c:1, e:"Gravity is the mutual attraction between masses that keeps planets in orbit." },
+      { q:"What organ pumps blood through the human body?", opts:["Lungs","Liver","Kidney","Heart"], c:3, e:"The heart is a muscular organ that pumps blood through the circulatory system." },
+      { q:"What is water's chemical formula?", opts:["HO","H2O","H3O","HO2"], c:1, e:"Water consists of two hydrogen atoms bonded to one oxygen atom: H₂O." },
+      { q:"Which planet is known as the Red Planet?", opts:["Jupiter","Venus","Mars","Saturn"], c:2, e:"Mars appears red due to iron oxide (rust) on its surface." },
+      { q:"How many colors are in a rainbow?", opts:["5","6","7","8"], c:2, e:"A rainbow has 7 colors: red, orange, yellow, green, blue, indigo, violet." },
+      { q:"What is the powerhouse of the cell?", opts:["Nucleus","Ribosome","Cell wall","Mitochondria"], c:3, e:"Mitochondria produce ATP through cellular respiration — hence 'powerhouse of the cell'." },
+      { q:"What type of animal is a whale?", opts:["Fish","Reptile","Mammal","Amphibian"], c:2, e:"Whales are marine mammals — they breathe air and nurse their young with milk." },
+      { q:"What is the closest star to Earth?", opts:["Sirius","Alpha Centauri","Proxima Centauri","The Sun"], c:3, e:"The Sun is by far the closest star, at about 150 million km from Earth." },
+    ],
+    medium: [
+      { q:"What is the most abundant element in the universe?", opts:["Helium","Carbon","Oxygen","Hydrogen"], c:3, e:"Hydrogen makes up about 75% of all normal matter in the universe." },
+      { q:"What type of radiation does the Sun primarily emit?", opts:["Gamma rays","X-rays","Ultraviolet","Visible light"], c:3, e:"The Sun's peak emission is in visible light, though it also emits UV and infrared." },
+      { q:"What is the pH of pure water?", opts:["5","6","7","8"], c:2, e:"Pure water is neutral with a pH of exactly 7 at 25°C." },
+      { q:"How many chambers does the human heart have?", opts:["2","3","4","5"], c:2, e:"The heart has 4 chambers: left atrium, right atrium, left ventricle, right ventricle." },
+      { q:"What is the unit of electric current?", opts:["Volt","Watt","Ohm","Ampere"], c:3, e:"The ampere (A) is the SI unit of electric current, named after André-Marie Ampère." },
+      { q:"Which vitamin does sunlight help the body produce?", opts:["Vitamin A","Vitamin B12","Vitamin C","Vitamin D"], c:3, e:"Sunlight triggers vitamin D synthesis in the skin from cholesterol." },
+      { q:"What is the name of the process by which water changes to vapor?", opts:["Condensation","Precipitation","Evaporation","Sublimation"], c:2, e:"Evaporation is the process of liquid water turning into water vapor." },
+      { q:"What is the chemical symbol for oxygen?", opts:["O","Ox","O2","Om"], c:0, e:"Oxygen's chemical symbol is simply O (atomic number 8)." },
+    ],
+    hard: [
+      { q:"What is the half-life of Carbon-14?", opts:["1,340 years","5,730 years","14,000 years","57,300 years"], c:1, e:"Carbon-14 has a half-life of approximately 5,730 years, used in radiocarbon dating." },
+      { q:"Which subatomic particle has a negative charge?", opts:["Proton","Neutron","Electron","Quark"], c:2, e:"Electrons carry a negative charge of −1.6×10⁻¹⁹ coulombs." },
+      { q:"What is the Heisenberg Uncertainty Principle about?", opts:["Wave-particle duality","Speed of light","Position and momentum","Quantum tunneling"], c:2, e:"It states that position and momentum of a particle cannot both be precisely known simultaneously." },
+      { q:"What is the chemical formula for table salt?", opts:["KCl","NaOH","NaCl","CaCl2"], c:2, e:"Table salt is sodium chloride — one sodium ion bonded to one chloride ion: NaCl." },
+      { q:"How many neurons are in the human brain (approx)?", opts:["8 billion","86 billion","200 billion","1 trillion"], c:1, e:"The human brain contains approximately 86 billion neurons (nerve cells)." },
+      { q:"What particle mediates the electromagnetic force?", opts:["Gluon","W boson","Graviton","Photon"], c:3, e:"Photons are the force carriers of the electromagnetic force in quantum electrodynamics." },
+      { q:"What is the name of the process that splits atomic nuclei?", opts:["Fusion","Fission","Transmutation","Decay"], c:1, e:"Nuclear fission splits heavy atomic nuclei, releasing large amounts of energy." },
+      { q:"What is the Pauli Exclusion Principle?", opts:["Two particles cannot occupy the same quantum state","Energy is quantized","Light has wave-particle duality","Mass and energy are equivalent"], c:0, e:"Wolfgang Pauli's exclusion principle states no two identical fermions can occupy the same quantum state simultaneously." },
+      { q:"What is the approximate temperature at the core of the Sun?", opts:["1.5 million K","15 million K","150 million K","1.5 billion K"], c:1, e:"The Sun's core temperature is approximately 15 million Kelvin, hot enough for nuclear fusion." },
+      { q:"Which force is responsible for radioactive beta decay?", opts:["Strong nuclear force","Electromagnetic force","Gravity","Weak nuclear force"], c:3, e:"Beta decay is mediated by the weak nuclear force, involving the transformation of quarks via W bosons." },
+      { q:"What is the name of the theoretical boundary temperature at which all molecular motion ceases?", opts:["Kelvin Zero","Absolute Minimum","Absolute Zero","Planck Temperature"], c:2, e:"Absolute zero (0 K or −273.15°C) is the theoretical lowest temperature where molecular motion stops." },
+      { q:"What does DNA stand for?", opts:["Dioxynucleic Acid","Deoxyribonucleic Acid","Dinitrogen Adenine","Dinuclear Acid"], c:1, e:"DNA stands for Deoxyribonucleic Acid, the molecule carrying genetic instructions in all living organisms." },
+    ]
+  },
+  history: {
+    easy: [
+      { q:"Who was the first President of the United States?", opts:["John Adams","Benjamin Franklin","George Washington","Thomas Jefferson"], c:2, e:"George Washington served as the first U.S. President from 1789 to 1797." },
+      { q:"In what year did World War II end?", opts:["1943","1944","1945","1946"], c:2, e:"World War II ended in 1945: VE Day on May 8, and VJ Day on September 2." },
+      { q:"Which ancient wonder was located in Alexandria, Egypt?", opts:["Hanging Gardens","Colossus of Rhodes","Great Pyramid","Lighthouse of Alexandria"], c:3, e:"The Lighthouse of Alexandria stood on the island of Pharos and guided sailors." },
+      { q:"What empire built the Colosseum in Rome?", opts:["Greek","Ottoman","Roman","Byzantine"], c:2, e:"The Roman Colosseum was built under Emperor Vespasian, completed in 80 AD." },
+      { q:"Who wrote the theory of evolution by natural selection?", opts:["Galileo","Newton","Darwin","Einstein"], c:2, e:"Charles Darwin published 'On the Origin of Species' in 1859." },
+      { q:"In which country did the French Revolution begin?", opts:["Britain","Germany","France","Spain"], c:2, e:"The French Revolution began in France in 1789 with the storming of the Bastille." },
+      { q:"Who was the first man to walk on the Moon?", opts:["Yuri Gagarin","Buzz Aldrin","Neil Armstrong","John Glenn"], c:2, e:"Neil Armstrong stepped on the Moon on July 21, 1969, during Apollo 11." },
+      { q:"What was the name of the ship that sank after hitting an iceberg in 1912?", opts:["Lusitania","Britannic","Olympic","Titanic"], c:3, e:"RMS Titanic sank on April 15, 1912, after striking an iceberg in the North Atlantic." },
+      { q:"What language did ancient Romans speak?", opts:["Greek","Italian","Latin","Spanish"], c:2, e:"Latin was the official language of the Roman Empire." },
+      { q:"What wall divided East and West Berlin?", opts:["Great Wall","Hadrian's Wall","Berlin Wall","Iron Curtain"], c:2, e:"The Berlin Wall stood from 1961 to 1989, dividing communist East from capitalist West Berlin." },
+    ],
+    medium: [
+      { q:"In what year did Christopher Columbus first reach the Americas?", opts:["1488","1492","1498","1502"], c:1, e:"Columbus reached the Bahamas on October 12, 1492, during his first voyage." },
+      { q:"Which country was the first to give women the right to vote (nationwide)?", opts:["USA","UK","New Zealand","Australia"], c:2, e:"New Zealand granted women the right to vote in 1893." },
+      { q:"Who was the longest-reigning British monarch?", opts:["Queen Victoria","George III","Elizabeth II","Henry VIII"], c:2, e:"Queen Elizabeth II reigned for 70 years (1952–2022)." },
+      { q:"What treaty officially ended World War I?", opts:["Treaty of Paris","Treaty of Utrecht","Treaty of Versailles","Treaty of Vienna"], c:2, e:"The Treaty of Versailles was signed on June 28, 1919." },
+      { q:"Which pharaoh built the Great Pyramid of Giza?", opts:["Tutankhamun","Ramesses II","Khufu","Amenhotep"], c:2, e:"The Great Pyramid was built as a tomb for Pharaoh Khufu around 2560 BCE." },
+      { q:"What was the name of Napoleon Bonaparte's final defeat?", opts:["Austerlitz","Waterloo","Trafalgar","Leipzig"], c:1, e:"Napoleon was decisively defeated at the Battle of Waterloo on June 18, 1815." },
+      { q:"In what year did the United States declare independence?", opts:["1774","1775","1776","1777"], c:2, e:"The Declaration of Independence was adopted on July 4, 1776." },
+      { q:"Which civilization built Machu Picchu?", opts:["Aztec","Maya","Olmec","Inca"], c:3, e:"Machu Picchu was built by the Inca civilization around 1450 CE in present-day Peru." },
+    ],
+    hard: [
+      { q:"What year did the Roman Empire split into East and West?", opts:["285 AD","330 AD","395 AD","476 AD"], c:2, e:"Emperor Theodosius I permanently split the Empire in 395 AD upon his death." },
+      { q:"Who was the first Emperor of unified China?", opts:["Kublai Khan","Cao Cao","Qin Shi Huang","Liu Bang"], c:2, e:"Qin Shi Huang unified the Warring States in 221 BCE and became the first Emperor." },
+      { q:"What was the name of the first artificial satellite launched into space?", opts:["Explorer 1","Vostok 1","Luna 1","Sputnik 1"], c:3, e:"Sputnik 1, launched by the USSR on October 4, 1957, was Earth's first artificial satellite." },
+      { q:"In which year did the Rwandan genocide occur?", opts:["1990","1994","1998","2002"], c:1, e:"The Rwandan genocide took place in 1994, claiming approximately 800,000 lives in 100 days." },
+      { q:"What was the name of the ship that brought the Pilgrims to Plymouth Rock?", opts:["Santa María","Endeavour","Beagle","Mayflower"], c:3, e:"The Mayflower carried 102 Pilgrims from England to Plymouth Colony in 1620." },
+      { q:"Which battle is credited with ending the Viking Age in England?", opts:["Battle of Clontarf","Battle of Hastings","Battle of Stamford Bridge","Battle of Maldon"], c:2, e:"Harold II defeated the last major Viking invasion at Stamford Bridge in September 1066." },
+      { q:"What empire controlled most of India before British colonization?", opts:["Ottoman Empire","Mongol Empire","Mughal Empire","Persian Empire"], c:2, e:"The Mughal Empire controlled most of the Indian subcontinent from 1526 to 1857." },
+      { q:"Which document established the framework for the United Nations in 1945?", opts:["Treaty of Versailles","Atlantic Charter","UN Charter","Bretton Woods Agreement"], c:2, e:"The UN Charter was signed on June 26, 1945, establishing the United Nations organization." },
+      { q:"What was the name of the first successful powered airplane flight location?", opts:["Cape Canaveral","Kitty Hawk","Dayton","Richmond"], c:1, e:"The Wright Brothers made their first successful flight at Kitty Hawk, North Carolina, on December 17, 1903." },
+      { q:"In which year did the Soviet Union launch Sputnik 1?", opts:["1955","1956","1957","1958"], c:2, e:"Sputnik 1 was launched on October 4, 1957, beginning the Space Age." },
+      { q:"What was the codename for the Allied invasion of Normandy on June 6, 1944?", opts:["Operation Torch","Operation Overlord","Operation Market Garden","Operation Barbarossa"], c:1, e:"Operation Overlord was the codename for the Normandy landings (D-Day) on June 6, 1944." },
+      { q:"Which Chinese dynasty built most of the Great Wall as it stands today?", opts:["Han Dynasty","Tang Dynasty","Song Dynasty","Ming Dynasty"], c:3, e:"Most of the Great Wall visible today was built during the Ming Dynasty (1368–1644)." },
+    ]
+  },
+  geography: {
+    easy: [
+      { q:"What is the longest river in the world?", opts:["Amazon","Congo","Yangtze","Nile"], c:3, e:"The Nile stretches approximately 6,650 km through northeastern Africa." },
+      { q:"On which continent is Brazil located?", opts:["Africa","North America","Europe","South America"], c:3, e:"Brazil is the largest country in South America." },
+      { q:"What is the tallest mountain in the world?", opts:["K2","Kangchenjunga","Mount Everest","Lhotse"], c:2, e:"Mount Everest stands at 8,848.86 m above sea level in the Himalayas." },
+      { q:"What is the largest country by area?", opts:["China","USA","Canada","Russia"], c:3, e:"Russia covers approximately 17.1 million km², the largest country on Earth." },
+      { q:"Which country is home to the Eiffel Tower?", opts:["Italy","Spain","France","Germany"], c:2, e:"The Eiffel Tower was built in Paris, France, for the 1889 World's Fair." },
+      { q:"What is the capital city of Australia?", opts:["Sydney","Melbourne","Brisbane","Canberra"], c:3, e:"Canberra became Australia's capital in 1913, chosen as a compromise between Sydney and Melbourne." },
+      { q:"What is the largest ocean on Earth?", opts:["Atlantic","Indian","Arctic","Pacific"], c:3, e:"The Pacific Ocean covers over 165 million km²." },
+      { q:"Which country has the most natural lakes?", opts:["USA","Russia","Brazil","Canada"], c:3, e:"Canada has more lakes than any other country — over 60% of the world's total." },
+      { q:"What desert is the largest in the world?", opts:["Gobi","Arabian","Sahara","Antarctic"], c:3, e:"The Antarctic Desert is the largest at 14.2 million km², followed by the Arctic and Sahara." },
+      { q:"What is the capital of Japan?", opts:["Osaka","Kyoto","Hiroshima","Tokyo"], c:3, e:"Tokyo has been Japan's capital since 1869, when Emperor Meiji moved the imperial seat there." },
+    ],
+    medium: [
+      { q:"Through how many countries does the Amazon River flow?", opts:["2","4","6","8"], c:0, e:"The Amazon flows primarily through Brazil, but also passes through Peru and Colombia — effectively 3, though the source region touches more." },
+      { q:"What is the smallest continent by area?", opts:["Europe","Antarctica","Australia","South America"], c:2, e:"Australia (Oceania) is the smallest continent at about 7.7 million km²." },
+      { q:"Which country has the most time zones?", opts:["Russia","USA","China","France"], c:3, e:"France, including its overseas territories, spans 12 time zones." },
+      { q:"What is the capital of Canada?", opts:["Toronto","Vancouver","Montreal","Ottawa"], c:3, e:"Ottawa, Ontario, has been Canada's capital since 1857." },
+      { q:"Which mountain range separates Europe from Asia?", opts:["Alps","Caucasus","Pyrenees","Ural Mountains"], c:3, e:"The Ural Mountains form the traditional boundary between Europe and Asia." },
+      { q:"What is the deepest lake in the world?", opts:["Caspian Sea","Lake Superior","Lake Titicaca","Lake Baikal"], c:3, e:"Lake Baikal in Russia reaches a depth of 1,642 m — the world's deepest and oldest lake." },
+      { q:"In which country is the Serengeti National Park located?", opts:["Kenya","South Africa","Tanzania","Botswana"], c:2, e:"The Serengeti is located in northern Tanzania, bordering the Masai Mara in Kenya." },
+      { q:"What is the capital of Brazil?", opts:["Rio de Janeiro","São Paulo","Salvador","Brasília"], c:3, e:"Brasília replaced Rio de Janeiro as Brazil's capital in 1960." },
+    ],
+    hard: [
+      { q:"What is the name of the deepest point in the ocean?", opts:["Puerto Rico Trench","Java Trench","Challenger Deep","Mariana Basin"], c:2, e:"Challenger Deep in the Mariana Trench reaches approximately 10,994 m below sea level." },
+      { q:"How many countries share a border with Germany?", opts:["7","8","9","10"], c:2, e:"Germany shares borders with 9 countries: Denmark, Poland, Czech Republic, Austria, Switzerland, France, Luxembourg, Belgium, and Netherlands." },
+      { q:"What is the longitude of the International Date Line?", opts:["0°","90°E","180°","90°W"], c:2, e:"The International Date Line runs roughly along the 180° meridian in the Pacific Ocean." },
+      { q:"Which African country has the most pyramids?", opts:["Egypt","Libya","Sudan","Ethiopia"], c:2, e:"Sudan has over 200 pyramids — more than Egypt — built by the ancient Kushite kingdoms." },
+      { q:"What is the name of the large island off the east coast of Africa?", opts:["Sri Lanka","Borneo","Sumatra","Madagascar"], c:3, e:"Madagascar, the world's 4th largest island, lies in the Indian Ocean off Mozambique." },
+      { q:"The Great Barrier Reef is located off the coast of which Australian state?", opts:["New South Wales","Western Australia","Queensland","Victoria"], c:2, e:"The Great Barrier Reef stretches 2,300 km along the coast of Queensland." },
+      { q:"Which strait separates Europe from Africa at the western end of the Mediterranean?", opts:["Bosphorus","Strait of Hormuz","Strait of Gibraltar","Strait of Sicily"], c:2, e:"The Strait of Gibraltar, just 14 km wide at its narrowest, separates Spain from Morocco." },
+      { q:"What is the name of the autonomous region with the world's largest canyon system on Mars?", opts:["Olympus Mons","Hellas Planitia","Valles Marineris","Tharsis Plateau"], c:2, e:"Valles Marineris on Mars stretches over 4,000 km long, making it the largest known canyon system in the solar system." },
+      { q:"Which country has the most UNESCO World Heritage Sites?", opts:["China","Italy","Spain","Germany"], c:1, e:"Italy leads with 58 UNESCO World Heritage Sites as of 2024." },
+      { q:"What is the name of the world's largest hot desert?", opts:["Arabian Desert","Gobi Desert","Sahara Desert","Kalahari Desert"], c:2, e:"The Sahara Desert spans approximately 9.2 million km² across North Africa, making it the world's largest hot desert." },
+      { q:"The Amazon rainforest spans how many countries?", opts:["5","7","9","12"], c:2, e:"The Amazon rainforest spreads across 9 countries: Brazil, Peru, Colombia, Venezuela, Ecuador, Bolivia, Guyana, Suriname, and French Guiana." },
+      { q:"What is the driest place on Earth?", opts:["Sahara Desert","Death Valley","Atacama Desert","Antarctic Dry Valleys"], c:3, e:"The Antarctic Dry Valleys receive virtually no precipitation and are considered the driest places on Earth." },
+    ]
+  },
+  sports: {
+    easy: [
+      { q:"How many players are in a standard soccer (football) team on the field?", opts:["9","10","11","12"], c:2, e:"Each soccer team fields 11 players including the goalkeeper." },
+      { q:"In tennis, what is a score of 0 called?", opts:["Nil","Zero","Love","Deuce"], c:2, e:"In tennis, zero points is called 'love' — possibly from the French 'l'oeuf' (egg)." },
+      { q:"How many rings are on the Olympic flag?", opts:["3","4","5","6"], c:2, e:"The Olympic flag features 5 rings representing the 5 continents of the world." },
+      { q:"What sport is played at Wimbledon?", opts:["Cricket","Badminton","Squash","Tennis"], c:3, e:"Wimbledon is the world's oldest tennis tournament, held annually in London since 1877." },
+      { q:"In which sport do players use a shuttlecock?", opts:["Tennis","Squash","Badminton","Pickleball"], c:2, e:"A shuttlecock (or birdie) is the feathered projectile used in badminton." },
+      { q:"How many holes are in a standard round of golf?", opts:["9","12","18","24"], c:2, e:"A standard golf course has 18 holes; a 'half round' has 9." },
+      { q:"In basketball, how many points is a free throw worth?", opts:["1","2","3","4"], c:0, e:"A free throw (penalty shot) is worth 1 point in basketball." },
+      { q:"What country invented the sport of cricket?", opts:["Australia","India","South Africa","England"], c:3, e:"Cricket originated in England, with the first definite reference in 1598." },
+      { q:"In American football, how many points is a touchdown worth?", opts:["3","5","6","7"], c:2, e:"A touchdown scores 6 points; the extra point or 2-point conversion comes separately." },
+      { q:"What color is a snooker ball worth 7 points?", opts:["Pink","Red","Brown","Black"], c:3, e:"In snooker, the black ball has the highest value at 7 points." },
+    ],
+    medium: [
+      { q:"How long is a marathon race in kilometers?", opts:["38.2 km","40.2 km","42.195 km","44.5 km"], c:2, e:"The standard marathon distance is 42.195 km (26 miles 385 yards)." },
+      { q:"Which country has won the most FIFA World Cup titles?", opts:["Germany","Argentina","Italy","Brazil"], c:3, e:"Brazil has won the FIFA World Cup 5 times (1958, 1962, 1970, 1994, 2002)." },
+      { q:"In which year were the first modern Olympic Games held?", opts:["1896","1900","1904","1908"], c:0, e:"The first modern Olympics were held in Athens, Greece, in 1896." },
+      { q:"What is the diameter of a basketball hoop in inches?", opts:["16","18","20","22"], c:1, e:"A basketball hoop has an inner diameter of 18 inches (45.7 cm)." },
+      { q:"Which tennis player has won the most Grand Slam singles titles (male)?", opts:["Roger Federer","Rafael Nadal","Pete Sampras","Novak Djokovic"], c:3, e:"Novak Djokovic holds the record with 24 Grand Slam singles titles (as of 2024)." },
+      { q:"How many players are on a volleyball team on the court?", opts:["5","6","7","8"], c:1, e:"Each volleyball team fields 6 players at a time." },
+      { q:"What is the highest score in a single darts visit (3 darts)?", opts:["150","158","167","180"], c:3, e:"Three triple-20s scores 180 — the maximum in a single visit to the darts board." },
+      { q:"In which sport would you perform a 'lutz'?", opts:["Gymnastics","Figure skating","Diving","Snowboarding"], c:1, e:"The lutz is a figure skating jump that takes off from the back outside edge of a skate." },
+    ],
+    hard: [
+      { q:"What is the term for a score of 3 under par on a single hole in golf?", opts:["Eagle","Condor","Double eagle","Albatross"], c:3, e:"An albatross (also called double eagle in the US) is 3 under par on a hole." },
+      { q:"In cricket, what is the maximum number of runs scored off a single delivery without running?", opts:["4","5","6","7"], c:2, e:"Six runs are scored when the ball is hit over the boundary without bouncing." },
+      { q:"Which country won the first Rugby World Cup in 1987?", opts:["Australia","South Africa","England","New Zealand"], c:3, e:"New Zealand beat France 29–9 to win the inaugural Rugby World Cup in 1987." },
+      { q:"What is the name of the governing body for international football (soccer)?", opts:["UEFA","FIFA","IOC","CONMEBOL"], c:1, e:"FIFA (Fédération Internationale de Football Association) is the global football governing body." },
+      { q:"In fencing, which weapon can score touches on the entire body?", opts:["Foil","Sabre","Épée","Rapier"], c:2, e:"The épée is the heaviest fencing weapon; the whole body is a valid target." },
+      { q:"How many times has Brazil hosted the FIFA World Cup?", opts:["1","2","3","4"], c:1, e:"Brazil hosted the World Cup twice: in 1950 and 2014." },
+      { q:"In which sport is the 'Corbett' dive named after?", opts:["Swimming","Trampolining","Cliff diving","Platform diving"], c:3, e:"The Corbett is a forward somersault with 2.5 twists in platform and springboard diving." },
+      { q:"In Olympic weightlifting, what is the combined discipline that includes both snatch and clean & jerk?", opts:["Powerlifting","Total","Biathlon","Decathlon"], c:1, e:"The 'Total' in Olympic weightlifting is the combined score of the snatch and clean & jerk lifts." },
+      { q:"Which country won the most gold medals at the 2020 Tokyo Olympics?", opts:["China","USA","Japan","Great Britain"], c:0, e:"The USA won the most gold medals at Tokyo 2020 with 39, though China finished close behind." },
+      { q:"In polo, how long is each period of play called?", opts:["Quarter","Chukka","Period","Chap"], c:1, e:"A polo match is divided into periods called 'chukkas', each lasting 7 minutes." },
+      { q:"What is the maximum score possible in a single frame of bowling?", opts:["10","20","30","50"], c:2, e:"A strike in every frame (including all bonus balls) gives a perfect score of 300 in bowling." },
+      { q:"In the Tour de France, what color jersey does the overall race leader wear?", opts:["Green","White","Red","Yellow"], c:3, e:"The yellow jersey (maillot jaune) is worn by the overall leader of the Tour de France." },
+    ]
+  },
+  entertainment: {
+    easy: [
+      { q:"Which Disney movie features a character named Simba?", opts:["Bambi","Tarzan","The Lion King","Jungle Book"], c:2, e:"Simba is the lion cub protagonist of The Lion King (1994)." },
+      { q:"What color is the 'Incredible Hulk' in Marvel Comics?", opts:["Red","Blue","Yellow","Green"], c:3, e:"The Hulk is famously green — a result of Bruce Banner's gamma radiation exposure." },
+      { q:"Which wizard school does Harry Potter attend?", opts:["Durmstrang","Beauxbatons","Castelobruxo","Hogwarts"], c:3, e:"Hogwarts School of Witchcraft and Wizardry is the setting for Harry Potter's education." },
+      { q:"What is the name of the cowboy toy in Toy Story?", opts:["Buzz","Rex","Hamm","Woody"], c:3, e:"Woody, voiced by Tom Hanks, is the cowboy pullstring doll in Toy Story (1995)." },
+      { q:"Which pop star is known as the 'Queen of Pop'?", opts:["Beyoncé","Rihanna","Lady Gaga","Madonna"], c:3, e:"Madonna has held the title 'Queen of Pop' since the 1980s." },
+      { q:"In the Star Wars franchise, what color is Darth Vader's lightsaber?", opts:["Blue","Green","Purple","Red"], c:3, e:"Darth Vader wields a red lightsaber, the color associated with Sith Lords." },
+      { q:"What streaming platform is known for the red logo with 'N'?", opts:["Hulu","Disney+","Amazon Prime","Netflix"], c:3, e:"Netflix's red 'N' logo has been their brand icon since their streaming pivot." },
+      { q:"Which band performed 'Bohemian Rhapsody'?", opts:["The Beatles","Led Zeppelin","Queen","The Rolling Stones"], c:2, e:"Queen released 'Bohemian Rhapsody' in 1975; it remains one of the best-selling singles ever." },
+      { q:"How many main 'Infinity Stones' exist in the Marvel Cinematic Universe?", opts:["4","5","6","7"], c:2, e:"There are 6 Infinity Stones: Space, Mind, Reality, Power, Time, and Soul." },
+      { q:"What animated show features the Griffin family?", opts:["The Simpsons","American Dad","Bob's Burgers","Family Guy"], c:3, e:"Family Guy, created by Seth MacFarlane in 1999, follows the Griffin family." },
+    ],
+    medium: [
+      { q:"Who played Iron Man in the Marvel Cinematic Universe?", opts:["Chris Evans","Mark Ruffalo","Chris Hemsworth","Robert Downey Jr."], c:3, e:"Robert Downey Jr. portrayed Tony Stark / Iron Man from 2008 to 2019." },
+      { q:"Which film won the first-ever Academy Award for Best Picture in 1928?", opts:["Wings","Sunrise","The Jazz Singer","Ben-Hur"], c:0, e:"Wings won Best Picture at the 1st Academy Awards (1927/28 ceremony)." },
+      { q:"What band released the album 'Dark Side of the Moon' in 1973?", opts:["Led Zeppelin","The Who","Pink Floyd","Black Sabbath"], c:2, e:"Pink Floyd's Dark Side of the Moon spent over 900 weeks on the Billboard charts." },
+      { q:"In the TV show 'Breaking Bad', what is Walter White's chemistry teacher alias?", opts:["The Cook","Mr. White","Heisenberg","El Jefe"], c:2, e:"Walter White adopts the alias 'Heisenberg' when operating as a drug manufacturer." },
+      { q:"Which video game franchise features a character named 'Link'?", opts:["Final Fantasy","Metroid","Mega Man","The Legend of Zelda"], c:3, e:"Link is the playable protagonist of Nintendo's Legend of Zelda series." },
+      { q:"What is the highest-grossing film of all time (unadjusted for inflation)?", opts:["Titanic","Avengers: Endgame","Avatar","Star Wars: The Force Awakens"], c:2, e:"Avatar (2009, re-released 2022) holds the all-time box office record at ~$2.92 billion." },
+      { q:"Who sang 'Thriller' in 1982?", opts:["Prince","David Bowie","Michael Jackson","Whitney Houston"], c:2, e:"Michael Jackson's Thriller (1982) remains the best-selling album of all time." },
+      { q:"In 'Game of Thrones', what is the name of Jon Snow's direwolf?", opts:["Ghost","Grey Wind","Nymeria","Lady"], c:0, e:"Jon Snow's direwolf is named Ghost — a white albino, reflecting Jon's status as a bastard." },
+    ],
+    hard: [
+      { q:"Who composed the score for the original Star Wars trilogy?", opts:["Hans Zimmer","Ennio Morricone","Bernard Herrmann","John Williams"], c:3, e:"John Williams composed the iconic Star Wars score, earning him an Oscar nomination for each film." },
+      { q:"Which Coen Brothers film won Best Picture at the 2008 Oscars?", opts:["Fargo","True Grit","Barton Fink","No Country for Old Men"], c:3, e:"No Country for Old Men swept 4 Oscars including Best Picture at the 80th Academy Awards." },
+      { q:"What year was the first iPhone released?", opts:["2005","2006","2007","2008"], c:2, e:"Steve Jobs unveiled the first iPhone on January 9, 2007; it went on sale June 29, 2007." },
+      { q:"In Hitchcock's 'Psycho' (1960), how much money does Marion Crane steal?", opts:["$20,000","$30,000","$40,000","$50,000"], c:3, e:"Marion Crane steals $40,000 from her employer in the opening of Psycho." },
+      { q:"Which artist had the best-selling album of the 2010s decade globally?", opts:["Taylor Swift","Drake","Ed Sheeran","Adele"], c:3, e:"Adele's '21' (2011) and '25' (2015) dominated the decade; '25' sold ~20 million copies." },
+      { q:"What was the first video game to be inducted into the World Video Game Hall of Fame?", opts:["Pong","Space Invaders","Super Mario Bros.","Tetris"], c:3, e:"Tetris was among the first inductees to the World Video Game Hall of Fame in 2015." },
+      { q:"In the TV show 'The Office' (US), what is the name of the paper company where the characters work?", opts:["Dunder Mifflin","Scranton Paper","Halpert & Co.","Vance Refrigeration"], c:0, e:"Dunder Mifflin Paper Company is the fictional paper supplier at the heart of The Office." },
+      { q:"Which film director is known for movies including 'Pulp Fiction' and 'Kill Bill'?", opts:["Martin Scorsese","Christopher Nolan","David Fincher","Quentin Tarantino"], c:3, e:"Quentin Tarantino is renowned for his distinctive non-linear storytelling style in films like Pulp Fiction (1994)." },
+      { q:"What is the highest-grossing video game franchise of all time?", opts:["Grand Theft Auto","Call of Duty","Pokémon","Mario"], c:2, e:"The Pokémon franchise, spanning games, cards, and merchandise, is the highest-grossing media franchise ever at over $150 billion." },
+      { q:"Which actor played the Joker in 'The Dark Knight' (2008)?", opts:["Jack Nicholson","Joaquin Phoenix","Jared Leto","Heath Ledger"], c:3, e:"Heath Ledger's portrayal of the Joker in The Dark Knight earned him a posthumous Academy Award." },
+      { q:"What year did the first Harry Potter book 'The Philosopher's Stone' publish?", opts:["1995","1996","1997","1998"], c:2, e:"Harry Potter and the Philosopher's Stone was first published on June 26, 1997, by Bloomsbury." },
+      { q:"In which TV series does Walter White appear?", opts:["Dexter","Better Call Saul","Ozark","Breaking Bad"], c:3, e:"Walter White is the protagonist of Breaking Bad (2008–2013), a chemistry teacher turned drug kingpin." },
+    ]
+  }
+};
+
+// ════════════════════════════════════════════════════════════
+// GAME CONFIGURATION
+// ════════════════════════════════════════════════════════════
+const CATEGORIES = [
+  { id:'general',       label:'General',       icon:'🌐' },
+  { id:'science',       label:'Science',       icon:'⚗️' },
+  { id:'history',       label:'History',       icon:'📜' },
+  { id:'geography',     label:'Geography',     icon:'🌍' },
+  { id:'sports',        label:'Sports',        icon:'🏅' },
+  { id:'entertainment', label:'Entertainment', icon:'🎬' },
+];
+
+const DIFFICULTY_CONFIG = {
+  easy:   { label:'Easy',   base:100, time:20, color:'#22c55e' },
+  medium: { label:'Medium', base:200, time:15, color:'#fbbf24' },
+  hard:   { label:'Hard',   base:300, time:10, color:'#ef4444' },
+};
+
+const STREAK_MULTIPLIERS = [
+  { min:0,  mul:1.0  },
+  { min:3,  mul:1.25 },
+  { min:5,  mul:1.5  },
+  { min:7,  mul:2.0  },
+];
+
+const QUESTIONS_PER_GAME = 10;
+const LETTERS = ['A','B','C','D'];
+
+// ════════════════════════════════════════════════════════════
+// PROFILE SYSTEM
+// ════════════════════════════════════════════════════════════
+const PROFILE_KEY = '46-trivia-quiz_profile';
+const PROFILE_VERSION = 1;
+const ACHIEVEMENTS_DEF = [
+  { id:'perfect',   icon:'⭐', name:'Perfect Score',    desc:'Answer all 10 questions correctly in one game' },
+  { id:'streak7',   icon:'🔥', name:'Streak Master',    desc:'Achieve a streak of 7 or more' },
+  { id:'speed',     icon:'⚡', name:'Speed Demon',      desc:'Answer a question in under 3 seconds' },
+  { id:'champ',     icon:'🏆', name:'Category Champion',desc:'Beat all 3 difficulties in any one category' },
+  { id:'games5',    icon:'🎮', name:'Dedicated Player', desc:'Play 5 or more games' },
+  { id:'correct50', icon:'💡', name:'Knowledge Seeker', desc:'Answer 50 questions correctly total' },
+];
+
+let profile = loadProfile();
+
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      if (p.version === PROFILE_VERSION) return p;
+    }
+  } catch(e) {}
+  return createProfile();
+}
+
+function createProfile() {
+  const names = ['QuizWizard','BrainiacPro','TriviaHero','KnowledgeKing','MindMaster','QuizStar'];
+  return {
+    version: PROFILE_VERSION,
+    uuid: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : 'uid-'+Date.now(),
+    name: names[Math.floor(Math.random()*names.length)] + Math.floor(Math.random()*100),
+    created: new Date().toISOString(),
+    gamesPlayed: 0,
+    totalCorrect: 0,
+    totalAnswered: 0,
+    bestStreak: 0,
+    totalScore: 0,
+    achievements: [],
+  };
+}
+
+function saveProfile() {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch(e) {}
+}
+
+function updateProfileAfterGame(results, bestStreak) {
+  profile.gamesPlayed++;
+  const correct = results.filter(r=>r.correct).length;
+  const total = results.length;
+  profile.totalCorrect += correct;
+  profile.totalAnswered += total;
+  if (bestStreak > profile.bestStreak) profile.bestStreak = bestStreak;
+  profile.totalScore += state.score;
+  saveProfile();
+  checkAchievements(results, correct, total, bestStreak);
+}
+
+// ════════════════════════════════════════════════════════════
+// ACHIEVEMENTS
+// ════════════════════════════════════════════════════════════
+function checkAchievements(results, correct, total, bestStreak) {
+  const newUnlocks = [];
+
+  function unlock(id) {
+    if (!profile.achievements.includes(id)) {
+      profile.achievements.push(id);
+      newUnlocks.push(id);
+    }
+  }
+
+  if (correct === total && total === QUESTIONS_PER_GAME) unlock('perfect');
+  if (bestStreak >= 7) unlock('streak7');
+  if (results.some(r => r.correct && r.time < 3)) unlock('speed');
+  if (profile.gamesPlayed >= 5) unlock('games5');
+  if (profile.totalCorrect >= 50) unlock('correct50');
+
+  // category champion: beat all 3 diffs in this category
+  const cat = state.category;
+  const allDiffs = ['easy','medium','hard'].every(d => getHighScore(cat,d) > 0);
+  if (allDiffs) unlock('champ');
+
+  saveProfile();
+
+  // Show toasts for new unlocks (staggered)
+  newUnlocks.forEach((id, i) => {
+    const def = ACHIEVEMENTS_DEF.find(a=>a.id===id);
+    if (def) setTimeout(() => showToast(`${def.icon} Achievement: ${def.name}!`, 3200), i*1200);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE PANEL UI
+// ════════════════════════════════════════════════════════════
+function openProfile() {
+  $('profileNameInput').value = profile.name;
+  $('psGames').textContent = profile.gamesPlayed;
+  $('psCorrect').textContent = profile.totalCorrect;
+  $('psStreak').textContent = profile.bestStreak;
+  $('psScore').textContent = profile.totalScore.toLocaleString();
+  const winRate = profile.totalAnswered > 0
+    ? Math.round((profile.totalCorrect/profile.totalAnswered)*100) + '%'
+    : '0%';
+  $('psWinRate').textContent = winRate;
+  $('psAch').textContent = profile.achievements.length + '/' + ACHIEVEMENTS_DEF.length;
+  const since = new Date(profile.created);
+  $('profileSince').textContent = 'Playing since ' + since.toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
+
+  // Render achievement list
+  const list = $('achList');
+  list.innerHTML = '';
+  ACHIEVEMENTS_DEF.forEach(def => {
+    const unlocked = profile.achievements.includes(def.id);
+    const item = document.createElement('div');
+    item.className = 'ach-item' + (unlocked ? ' unlocked' : '');
+    item.innerHTML = `<div class="ach-icon">${def.icon}</div><div class="ach-text"><div class="ach-name">${def.name}</div><div class="ach-desc">${def.desc}</div></div>`;
+    list.appendChild(item);
+  });
+
+  $('profilePanel').classList.add('open');
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, duration=2400) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ════════════════════════════════════════════════════════════
+// PAUSE / TAB BLUR
+// ════════════════════════════════════════════════════════════
+let pausedByBlur = false;
+let pausedManually = false;
+
+function pauseTimer() {
+  if (state.answered || !state.timerInterval) return;
+  clearInterval(state.timerInterval);
+  clearInterval(tickInterval);
+  state.timerInterval = null;
+  // save exact remaining time
+  const elapsed = (Date.now() - state.timerStart) / 1000;
+  const cfg = DIFFICULTY_CONFIG[state.difficulty];
+  state.timerRemaining = Math.max(0, cfg.time - elapsed);
+}
+
+function resumeTimer() {
+  if (state.answered || !state.timerRemaining || state.timerInterval) return;
+  const remaining = state.timerRemaining;
+  const cfg = DIFFICULTY_CONFIG[state.difficulty];
+  const bar = $('timerBar');
+  state.timerStart = Date.now() - (cfg.time - remaining) * 1000;
+  state.timerInterval = setInterval(() => {
+    const elapsed2 = (Date.now() - state.timerStart) / 1000;
+    const rem2 = Math.max(0, cfg.time - elapsed2);
+    state.timerRemaining = rem2;
+    const pct = (rem2 / cfg.time) * 100;
+    bar.style.width = pct + '%';
+    if (rem2 <= 5) { bar.classList.add('urgent'); startTicking(rem2, cfg.time); }
+    if (rem2 <= 0) { clearInterval(state.timerInterval); state.timerInterval=null; handleTimeout(); }
+  }, 80);
+}
+
+function manualPause() {
+  const screen = document.querySelector('.screen.active')?.id;
+  if (screen !== 'screenGame' || state.answered) return;
+  pausedManually = true;
+  pauseTimer();
+  $('pauseOverlay').classList.add('open');
+  $('btnPause').textContent = '▶';
+}
+
+function resumeGame() {
+  $('pauseOverlay').classList.remove('open');
+  pausedManually = false;
+  pausedByBlur = false;
+  $('btnPause').textContent = '⏸';
+  resumeTimer();
+}
+
+function handleVisibilityChange() {
+  const screen = document.querySelector('.screen.active')?.id;
+  if (screen !== 'screenGame') return;
+  if (document.hidden) {
+    if (!state.answered && !pausedManually) {
+      pausedByBlur = true;
+      pauseTimer();
+      $('pauseOverlay').classList.add('open');
+    }
+  } else {
+    if (pausedByBlur && !pausedManually) {
+      // Auto-resume after short delay when tab returns
+      setTimeout(() => {
+        pausedByBlur = false;
+        $('pauseOverlay').classList.remove('open');
+        resumeTimer();
+      }, 600);
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// SHARE SCORE
+// ════════════════════════════════════════════════════════════
+function shareScore() {
+  const cat = CATEGORIES.find(c=>c.id===state.category);
+  const diff = DIFFICULTY_CONFIG[state.difficulty];
+  const correct = state.results.filter(r=>r.correct).length;
+  const total = state.results.length;
+  const text = `I scored ${state.score.toLocaleString()} points in ${cat?.label} ${diff.label} Trivia Quiz! ${correct}/${total} correct 🏆 Can you beat me?`;
+  if (navigator.share) {
+    navigator.share({ title: 'Trivia Quiz Score', text }).catch(()=>{});
+  } else {
+    try { navigator.clipboard.writeText(text); showToast('Score copied to clipboard!'); }
+    catch(e) { showToast(text.slice(0,60)+'...'); }
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════
+let state = {
+  category: null,
+  difficulty: 'medium',
+  questions: [],
+  current: 0,
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  lifelineUsed: false,
+  answered: false,
+  timerStart: 0,
+  timerInterval: null,
+  timerRemaining: 0,
+  results: [], // {correct, userAns, correctAns, q, pts, time}
+  muted: false,
+  audioCtx: null,
+};
+
+// ════════════════════════════════════════════════════════════
+// AUDIO
+// ════════════════════════════════════════════════════════════
+function getAudioCtx() {
+  if (!state.audioCtx) {
+    try { state.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+  }
+  return state.audioCtx;
+}
+function playTone(freq, duration, type='sine', vol=0.25, startDelay=0) {
+  if (state.muted) return;
+  const ctx = getAudioCtx(); if (!ctx) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, ctx.currentTime + startDelay);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + startDelay + duration);
+  osc.start(ctx.currentTime + startDelay);
+  osc.stop(ctx.currentTime + startDelay + duration + 0.01);
+}
+function sfxCorrect() {
+  playTone(440, 0.1, 'sine', 0.2);
+  playTone(660, 0.15, 'sine', 0.2, 0.1);
+}
+function sfxWrong() {
+  playTone(300, 0.12, 'sawtooth', 0.15);
+  playTone(200, 0.2, 'sawtooth', 0.15, 0.1);
+}
+function sfxTick() {
+  playTone(900, 0.05, 'square', 0.08);
+}
+function sfxStreak() {
+  [440,554,659,880].forEach((f,i) => playTone(f, 0.12, 'sine', 0.2, i*0.08));
+}
+function sfxFinish() {
+  [523,659,784].forEach((f,i) => playTone(f, 0.3, 'sine', 0.25, i*0.15));
+}
+let tickInterval = null;
+function startTicking(remaining, total) {
+  clearInterval(tickInterval);
+  if (remaining / total < 0.4) {
+    sfxTick();
+    tickInterval = setInterval(() => { if (!state.answered) sfxTick(); else clearInterval(tickInterval); }, 900);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// UTILITIES
+// ════════════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) {
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+function $(id) { return document.getElementById(id); }
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function getStreakMul(streak) {
+  let mul = 1.0;
+  for (const m of STREAK_MULTIPLIERS) { if (streak >= m.min) mul = m.mul; }
+  return mul;
+}
+function saveHighScore(cat, diff, score) {
+  const key = `tq_hi_${cat}_${diff}`;
+  const prev = parseInt(localStorage.getItem(key)||'0');
+  if (score > prev) { localStorage.setItem(key, score); return true; }
+  return false;
+}
+function getHighScore(cat, diff) {
+  return parseInt(localStorage.getItem(`tq_hi_${cat}_${diff}`)||'0');
+}
+
+// ════════════════════════════════════════════════════════════
+// START SCREEN
+// ════════════════════════════════════════════════════════════
+function initStartScreen() {
+  const grid = $('catGrid');
+  grid.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn';
+    btn.dataset.cat = cat.id;
+    const hiScore = getHighScore(cat.id, state.difficulty);
+    btn.innerHTML = `<span class="cat-icon">${cat.icon}</span>${cat.label}<span class="hi-badge">HI</span>`;
+    if (hiScore > 0) btn.classList.add('has-hi');
+    if (state.category === cat.id) btn.classList.add('selected');
+    btn.addEventListener('click', () => selectCategory(cat.id));
+    grid.appendChild(btn);
+  });
+
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.diff === state.difficulty);
+  });
+
+  updateStartBtn();
+}
+
+function selectCategory(catId) {
+  state.category = catId;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('selected', b.dataset.cat===catId));
+  updateStartBtn();
+}
+
+function updateStartBtn() {
+  const btn = $('btnStart');
+  if (state.category) {
+    const hi = getHighScore(state.category, state.difficulty);
+    btn.textContent = hi > 0 ? `Start Quiz — Best: ${hi.toLocaleString()}` : 'Start Quiz ▶';
+    btn.disabled = false;
+  } else {
+    btn.textContent = 'Select a Category to Start';
+    btn.disabled = true;
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// GAME LOGIC
+// ════════════════════════════════════════════════════════════
+function startGame() {
+  // GameShell: adopt the chosen question difficulty (normal == this quiz's
+  // existing default "medium") before building the question pool.
+  if (window.GameShell && typeof GameShell.getDifficulty === 'function') {
+    syncDiffFromGameShell();
+  }
+
+  const pool = QUESTIONS[state.category][state.difficulty];
+  const shuffled = shuffle(pool);
+  state.questions = shuffled.slice(0, Math.min(QUESTIONS_PER_GAME, shuffled.length));
+  state.current = 0;
+  state.score = 0;
+  state.streak = 0;
+  state.bestStreak = 0;
+  state.lifelineUsed = false;
+  state.results = [];
+
+  // GameShell: the start of a new quiz refills the hint allotment.
+  if (window.GameShell && typeof GameShell.newGame === 'function') {
+    GameShell.newGame(state.category + '-' + state.difficulty + '-' + Date.now());
+  }
+  pausedByBlur = false;
+  pausedManually = false;
+  $('pauseOverlay').classList.remove('open');
+  $('btnPause').textContent = '⏸';
+
+  showScreen('screenGame');
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const q = state.questions[state.current];
+  const cfg = DIFFICULTY_CONFIG[state.difficulty];
+  const cat = CATEGORIES.find(c=>c.id===state.category);
+
+  state.answered = false;
+
+  // HUD
+  $('hudCat').textContent = `${cat.icon} ${cat.label} · ${cfg.label}`;
+  $('hudProg').textContent = `Q ${state.current+1}/${state.questions.length}`;
+  $('hudScore').textContent = state.score.toLocaleString();
+  updateStreakHUD();
+
+  // question
+  $('qNum').textContent = `Question ${state.current+1} of ${state.questions.length}`;
+  $('qText').textContent = q.q;
+
+  // build shuffled options (store correctText)
+  const opts = q.opts.map((text,idx) => ({ text, correct: idx===q.c }));
+  const shuffledOpts = shuffle(opts);
+  q._shuffled = shuffledOpts;
+
+  const list = $('optionList');
+  list.innerHTML = '';
+  shuffledOpts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.innerHTML = `<span class="opt-letter">${LETTERS[i]}</span>${opt.text}`;
+    btn.addEventListener('click', () => handleAnswer(i));
+    btn.addEventListener('touchstart', (e)=>{e.preventDefault();handleAnswer(i);},{passive:false});
+    list.appendChild(btn);
+  });
+
+  // lifeline
+  $('btnLifeline').disabled = state.lifelineUsed;
+
+  // explanation + next
+  $('explanation').className = 'explanation';
+  $('explanation').textContent = '';
+  $('btnNext').className = 'btn-next';
+
+  // timer
+  startTimer(cfg.time);
+}
+
+function startTimer(seconds) {
+  clearInterval(state.timerInterval);
+  clearInterval(tickInterval);
+  state.timerRemaining = seconds;
+  const total = seconds;
+  const bar = $('timerBar');
+  bar.style.width = '100%';
+  bar.className = 'timer-bar';
+  state.timerStart = Date.now();
+
+  state.timerInterval = setInterval(() => {
+    const elapsed = (Date.now() - state.timerStart) / 1000;
+    const remaining = Math.max(0, seconds - elapsed);
+    state.timerRemaining = remaining;
+    const pct = (remaining / total) * 100;
+    bar.style.width = pct + '%';
+
+    if (remaining <= 5) {
+      bar.classList.add('urgent');
+      startTicking(remaining, total);
+    }
+
+    if (remaining <= 0) {
+      clearInterval(state.timerInterval);
+      handleTimeout();
+    }
+  }, 80);
+}
+
+function handleAnswer(optIdx) {
+  if (state.answered) return;
+  state.answered = true;
+  clearInterval(state.timerInterval);
+  clearInterval(tickInterval);
+
+  const q = state.questions[state.current];
+  const shuffledOpts = q._shuffled;
+  const chosen = shuffledOpts[optIdx];
+  const cfg = DIFFICULTY_CONFIG[state.difficulty];
+  const timeUsed = (Date.now() - state.timerStart) / 1000;
+  const timeRemaining = Math.max(0, cfg.time - timeUsed);
+  const buttons = $('optionList').querySelectorAll('.opt-btn');
+
+  // disable all
+  buttons.forEach(b => { b.disabled = true; });
+
+  if (chosen.correct) {
+    // correct
+    buttons[optIdx].classList.add('correct');
+    const mul = getStreakMul(state.streak);
+    state.streak++;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    const timeBonus = Math.floor((timeRemaining / cfg.time) * cfg.base * 0.5);
+    const pts = Math.floor(cfg.base * mul) + timeBonus;
+    state.score += pts;
+    state.results.push({ correct:true, userAns:chosen.text, correctAns:chosen.text, q:q.q, pts, time:Math.round(timeUsed*10)/10, exp:q.e });
+
+    sfxCorrect();
+    showScoreDelta('+'+pts, 'correct-delta');
+    updateStreakHUD(true);
+    if (state.streak >= 5) spawnFire();
+
+  } else {
+    // wrong — highlight chosen red, show correct green
+    buttons[optIdx].classList.add('wrong');
+    const correctIdx = shuffledOpts.findIndex(o=>o.correct);
+    if (correctIdx >= 0) buttons[correctIdx].classList.add('correct');
+
+    state.streak = 0;
+    const correctText = shuffledOpts.find(o=>o.correct)?.text || '';
+    state.results.push({ correct:false, userAns:chosen.text, correctAns:correctText, q:q.q, pts:0, time:Math.round(timeUsed*10)/10, exp:q.e });
+
+    sfxWrong();
+    showScoreDelta('✗', 'wrong-delta');
+    updateStreakHUD();
+  }
+
+  // update HUD score
+  $('hudScore').textContent = state.score.toLocaleString();
+
+  // show explanation
+  const expEl = $('explanation');
+  expEl.textContent = q.e;
+  expEl.className = 'explanation show';
+
+  // show next / or auto end
+  showNextOrEnd();
+}
+
+function handleTimeout() {
+  if (state.answered) return;
+  state.answered = true;
+  clearInterval(tickInterval);
+
+  const q = state.questions[state.current];
+  const shuffledOpts = q._shuffled;
+  const buttons = $('optionList').querySelectorAll('.opt-btn');
+  buttons.forEach(b => { b.disabled = true; });
+
+  const correctIdx = shuffledOpts.findIndex(o=>o.correct);
+  if (correctIdx >= 0) buttons[correctIdx].classList.add('correct');
+
+  const correctText = shuffledOpts.find(o=>o.correct)?.text || '';
+  state.results.push({ correct:false, timeout:true, userAns:'⏰ Timed out', correctAns:correctText, q:q.q, pts:0, time:DIFFICULTY_CONFIG[state.difficulty].time, exp:q.e });
+  state.streak = 0;
+  updateStreakHUD();
+  sfxWrong();
+
+  const expEl = $('explanation');
+  expEl.textContent = q.e;
+  expEl.className = 'explanation show';
+
+  showNextOrEnd();
+}
+
+function showNextOrEnd() {
+  const nextBtn = $('btnNext');
+  if (state.current >= state.questions.length - 1) {
+    nextBtn.textContent = 'See Results 🏆';
+    nextBtn.className = 'btn-next show';
+    nextBtn.onclick = showEndScreen;
+  } else {
+    nextBtn.textContent = 'Next Question →';
+    nextBtn.className = 'btn-next show';
+    nextBtn.onclick = nextQuestion;
+  }
+}
+
+function nextQuestion() {
+  state.current++;
+  renderQuestion();
+}
+
+function updateStreakHUD(pop=false) {
+  const el = $('hudStreak');
+  const mul = getStreakMul(state.streak);
+  el.textContent = `🔥 ${state.streak}${mul>1?' ×'+mul:''}`;
+  if (pop) {
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+}
+
+function showScoreDelta(text, cls) {
+  const el = $('scoreDelta');
+  el.textContent = text;
+  el.className = 'score-delta';
+  void el.offsetWidth;
+  el.className = `score-delta ${cls} pop`;
+}
+
+function use5050() {
+  if (state.lifelineUsed || state.answered) return;
+  state.lifelineUsed = true;
+  $('btnLifeline').disabled = true;
+
+  const q = state.questions[state.current];
+  const shuffledOpts = q._shuffled;
+  const buttons = $('optionList').querySelectorAll('.opt-btn');
+
+  // find wrong option indices
+  const wrongIndices = shuffledOpts.map((o,i)=>o.correct?-1:i).filter(i=>i>=0);
+  const toEliminate = shuffle(wrongIndices).slice(0,2);
+  toEliminate.forEach(i => {
+    buttons[i].classList.add('eliminated');
+    buttons[i].disabled = true;
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// END SCREEN
+// ════════════════════════════════════════════════════════════
+function showEndScreen() {
+  sfxFinish();
+  clearInterval(state.timerInterval);
+  clearInterval(tickInterval);
+
+  const total = state.results.length;
+  const correct = state.results.filter(r=>r.correct).length;
+  const pct = Math.round((correct/total)*100);
+
+  const rank = pct >= 90 ? ['🏆','Expert','#fbbf24']
+             : pct >= 80 ? ['🥇','Great!','#22c55e']
+             : pct >= 60 ? ['🥈','Good','#60a5fa']
+             : pct >= 30 ? ['🥉','Pass','#a78bfa']
+             :             ['📚','Keep Trying','#94a3b8'];
+
+  $('endBadge').textContent = rank[0];
+  $('endRank').textContent = rank[1];
+  $('endRank').style.color = rank[2];
+  $('endScore').textContent = state.score.toLocaleString();
+  $('endPct').textContent = `${correct} / ${total} correct — ${pct}%`;
+
+  $('statCorrect').textContent = `${correct}/${total}`;
+  $('statStreak').textContent = state.bestStreak;
+  const avgTime = state.results.length > 0
+    ? Math.round(state.results.reduce((s,r)=>s+r.time,0)/state.results.length*10)/10
+    : 0;
+  $('statTime').textContent = avgTime + 's';
+
+  const isNew = saveHighScore(state.category, state.difficulty, state.score);
+  $('newRecord').style.display = isNew ? 'inline-block' : 'none';
+
+  // GameShell: record the final points to the per-difficulty leaderboard
+  // (higher is better; medium maps to GameShell's "normal" bucket).
+  if (window.GameShell && typeof GameShell.submitScore === 'function') {
+    GameShell.submitScore(state.score, { difficulty: gsDiffName(state.difficulty) });
+  }
+
+  // Update lifetime profile stats
+  updateProfileAfterGame(state.results, state.bestStreak);
+
+  // question review
+  const rev = $('reviewItems');
+  rev.innerHTML = '';
+  state.results.forEach((r,i) => {
+    const d = document.createElement('div');
+    d.className = `review-item ${r.correct?'ri-correct':r.timeout?'ri-timeout':'ri-wrong'}`;
+    let ansLine = r.correct
+      ? `<span style="color:var(--correct)">✓ ${r.userAns}</span>`
+      : `Your answer: <span class="your-ans">${r.userAns}</span> · Correct: <span class="correct-ans">${r.correctAns}</span>`;
+    d.innerHTML = `<div class="ri-q">Q${i+1}: ${r.q}</div><div class="ri-ans">${ansLine}</div>`;
+    rev.appendChild(d);
+  });
+
+  showScreen('screenEnd');
+}
+
+// ════════════════════════════════════════════════════════════
+// FIRE PARTICLES
+// ════════════════════════════════════════════════════════════
+function spawnFire() {
+  const container = $('streakFire');
+  const emojis = ['🔥','⚡','✨','💫'];
+  for (let i=0;i<6;i++) {
+    const p = document.createElement('div');
+    p.className = 'fire-particle';
+    p.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+    p.style.left = (20 + Math.random()*60) + '%';
+    p.style.top = (40 + Math.random()*40) + '%';
+    p.style.animationDelay = (Math.random()*0.4)+'s';
+    container.appendChild(p);
+    setTimeout(()=>p.remove(), 1600);
+  }
+  sfxStreak();
+}
+
+// ════════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // category buttons
+  initStartScreen();
+
+  // difficulty
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.difficulty = btn.dataset.diff;
+      document.querySelectorAll('.diff-btn').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      initStartScreen(); // refresh hi scores
+    });
+  });
+
+  // start
+  $('btnStart').addEventListener('click', () => {
+    if (state.category) startGame();
+  });
+
+  // next
+  $('btnNext').addEventListener('click', () => {});
+
+  // lifeline
+  $('btnLifeline').addEventListener('click', use5050);
+
+  // replay
+  $('btnReplay').addEventListener('click', startGame);
+  $('btnChange').addEventListener('click', () => { showScreen('screenStart'); initStartScreen(); });
+
+  // how to play
+  $('btnHowTo').addEventListener('click', ()=>{ $('modalHowTo').classList.add('open'); });
+  $('modalHowToClose').addEventListener('click', ()=>{ $('modalHowTo').classList.remove('open'); });
+  $('modalHowTo').addEventListener('click', e=>{ if(e.target===$('modalHowTo')) $('modalHowTo').classList.remove('open'); });
+
+  // settings
+  $('btnSettings').addEventListener('click', ()=>{
+    $('soundToggle').checked = !state.muted;
+    $('modalSettings').classList.add('open');
+  });
+  $('modalSettingsClose').addEventListener('click', ()=>{ $('modalSettings').classList.remove('open'); });
+  $('modalSettings').addEventListener('click', e=>{ if(e.target===$('modalSettings')) $('modalSettings').classList.remove('open'); });
+  $('soundToggle').addEventListener('change', () => {
+    state.muted = !$('soundToggle').checked;
+    localStorage.setItem('tq_muted', state.muted?'1':'0');
+    $('btnMute').textContent = state.muted ? '🔇' : '🔊';
+    if (!state.muted && state.audioCtx?.state==='suspended') state.audioCtx.resume();
+  });
+  $('btnResetScores').addEventListener('click', () => {
+    if (confirm('Reset all high scores? This cannot be undone.')) {
+      CATEGORIES.forEach(c => {
+        ['easy','medium','hard'].forEach(d => localStorage.removeItem(`tq_hi_${c.id}_${d}`));
+      });
+      $('modalSettings').classList.remove('open');
+      initStartScreen();
+    }
+  });
+
+  // mute toggle (top bar)
+  $('btnMute').addEventListener('click', () => {
+    state.muted = !state.muted;
+    $('soundToggle').checked = !state.muted;
+    $('btnMute').textContent = state.muted ? '🔇' : '🔊';
+    localStorage.setItem('tq_muted', state.muted?'1':'0');
+    if (!state.muted && state.audioCtx?.state==='suspended') state.audioCtx.resume();
+    // un-suspend on click
+    if (!state.muted) getAudioCtx()?.resume();
+  });
+
+  // load mute preference
+  if (localStorage.getItem('tq_muted')==='1') {
+    state.muted = true;
+    $('btnMute').textContent = '🔇';
+    $('soundToggle').checked = false;
+  }
+
+  // unlock audio on first user interaction
+  document.addEventListener('click', ()=>{ if(!state.muted) getAudioCtx()?.resume(); }, {once:true});
+  document.addEventListener('touchstart', ()=>{ if(!state.muted) getAudioCtx()?.resume(); }, {once:true});
+
+  // ── PAUSE BUTTON ──
+  $('btnPause').addEventListener('click', () => { manualPause(); });
+  $('btnResume').addEventListener('click', () => { resumeGame(); });
+
+  // ── PROFILE ──
+  $('btnProfile').addEventListener('click', () => { openProfile(); });
+  $('profileClose').addEventListener('click', () => { $('profilePanel').classList.remove('open'); });
+  $('profilePanel').addEventListener('click', e => { if(e.target===$('profilePanel')) $('profilePanel').classList.remove('open'); });
+  $('btnSaveName').addEventListener('click', () => {
+    const name = $('profileNameInput').value.trim();
+    if (name) { profile.name = name; saveProfile(); showToast('Name saved!'); }
+  });
+  $('profileNameInput').addEventListener('keydown', e => { if (e.key==='Enter') $('btnSaveName').click(); });
+
+  // ── SHARE ──
+  $('btnShare').addEventListener('click', shareScore);
+
+  // ── TAB VISIBILITY ──
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  // keyboard: 1-4 to select options, Space/Enter for next
+  document.addEventListener('keydown', (e) => {
+    const screen = document.querySelector('.screen.active')?.id;
+    if (screen === 'screenGame') {
+      if (['1','2','3','4'].includes(e.key)) {
+        const idx = parseInt(e.key)-1;
+        const btns = $('optionList').querySelectorAll('.opt-btn');
+        if (btns[idx] && !btns[idx].disabled) btns[idx].click();
+      }
+      if ((e.key==='Enter'||e.key===' ') && $('btnNext').classList.contains('show')) {
+        e.preventDefault();
+        $('btnNext').click();
+      }
+      if (e.key==='l'||e.key==='L') {
+        if (!$('btnLifeline').disabled) use5050();
+      }
+    }
+  });
+});
+
+// ─────────────────────────────── GAMESHELL DEEP INTEGRATION
+// Bridges the universal GameShell overlay to this quiz's existing systems:
+//  • Difficulty: GameShell easy/normal/hard <-> this quiz's easy/medium/hard
+//    (GameShell "normal" is the quiz's existing default "medium" — unchanged).
+//    Easier/harder questions AND a longer/shorter timer via DIFFICULTY_CONFIG.
+//  • Score: total points (state.score), higher-is-better, per difficulty.
+//  • newGame(): refills hints at the start of each new quiz (wired in startGame).
+//  • onHint(): a REAL 50/50 — names one displayed WRONG option to eliminate.
+
+// Map this quiz's difficulty -> GameShell difficulty bucket.
+function gsDiffName(quizDiff) {
+  return quizDiff === 'medium' ? 'normal' : quizDiff; // easy/hard unchanged
+}
+// Map a GameShell difficulty -> this quiz's difficulty value.
+function quizDiffName(gsDiff) {
+  return gsDiff === 'normal' ? 'medium' : gsDiff; // easy/hard unchanged
+}
+
+// Adopt GameShell's selected difficulty into the quiz state + start-screen buttons.
+function syncDiffFromGameShell() {
+  try {
+    const qd = quizDiffName(GameShell.getDifficulty());
+    if (qd && DIFFICULTY_CONFIG[qd]) {
+      state.difficulty = qd;
+      // reflect in the start-screen difficulty buttons if present
+      document.querySelectorAll('.diff-btn').forEach(function (b) {
+        b.classList.toggle('selected', b.dataset.diff === qd);
+      });
+    }
+  } catch (e) {}
+}
+
+// Produce a real 50/50-style hint: name ONE wrong option of the CURRENT question.
+function triviaHint() {
+  const screen = document.querySelector('.screen.active');
+  if (!screen || screen.id !== 'screenGame') return "Start a quiz to get a hint.";
+  if (state.answered) return "You've already answered — move to the next question.";
+  const q = state.questions[state.current];
+  if (!q) return "No active question right now.";
+
+  // Prefer options still visible on screen (not already eliminated by 50/50),
+  // using the shuffled options actually rendered.
+  const shuffled = q._shuffled;
+  const buttons = $('optionList').querySelectorAll('.opt-btn');
+  let wrong = [];
+  if (shuffled && shuffled.length) {
+    shuffled.forEach(function (o, i) {
+      const btn = buttons[i];
+      const eliminated = btn && (btn.classList.contains('eliminated') || btn.disabled);
+      if (!o.correct && !eliminated) wrong.push(o.text);
+    });
+    // fall back to any wrong option if all visible ones were already removed
+    if (!wrong.length) wrong = shuffled.filter(function (o) { return !o.correct; }).map(function (o) { return o.text; });
+  } else {
+    // question not yet shuffled/rendered — use raw options
+    wrong = q.opts.filter(function (_, i) { return i !== q.c; });
+  }
+  if (!wrong.length) return "No wrong option left to eliminate.";
+  const pick = wrong[Math.floor(Math.random() * wrong.length)];
+  return "It's not ‘" + pick + "’.";
+}
+
+if (window.GameShell) {
+  // Real hint provider (50/50 elimination of one wrong answer).
+  if (typeof GameShell.onHint === 'function') {
+    GameShell.onHint(triviaHint);
+  }
+  // When difficulty changes in the GameShell panel, reflect it on the start screen.
+  if (typeof GameShell.onDifficulty === 'function') {
+    GameShell.onDifficulty(function () {
+      const screen = document.querySelector('.screen.active');
+      if (!screen || screen.id === 'screenStart') {
+        syncDiffFromGameShell();
+        if (typeof initStartScreen === 'function') initStartScreen();
+      }
+    });
+  }
+  // Adopt GameShell's saved difficulty as the start-screen default once ready.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () {
+      syncDiffFromGameShell();
+      if (typeof initStartScreen === 'function') initStartScreen();
+    });
+  } else {
+    syncDiffFromGameShell();
+    if (typeof initStartScreen === 'function') initStartScreen();
+  }
+}
+</script>
+</body>
+</html>
