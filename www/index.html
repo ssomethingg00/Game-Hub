@@ -343,7 +343,7 @@
       <p class="sub">Your arcade — all games in one place</p>
     </div>
     <button id="btnSettings" class="settings-btn" title="Settings & Updates">⚙️</button>
-    <span class="count-pill" id="countPill">40 games</span>
+    <span class="count-pill" id="countPill">41 games</span>
   </div>
 
   <div class="searchwrap">
@@ -363,7 +363,7 @@
   </div>
 </main>
 
-<footer>40 single-file games · click any card to play · ★ to favorite</footer>
+<footer>41 single-file games · click any card to play · ★ to favorite</footer>
 
 <!-- Settings Modal -->
 <div class="modal" id="settingsModal" style="display:none;">
@@ -468,6 +468,8 @@ const GAMES = [
   {n:48,t:"Simon Says",          e:"🎵", c:"skill",  f:"48-simon-says"},
   {n:49,t:"Maze",                e:"🌀", c:"skill",  f:"49-maze"},
   {n:50,t:"Reaction Test",       e:"⚡", c:"skill",  f:"50-reaction-test"},
+
+  {n:51,t:"Chess",               e:"♟️", c:"board",  f:"51-chess"},
 ];
 GAMES.forEach(g => g.url = g.f + "/" + g.f + ".html");
 
