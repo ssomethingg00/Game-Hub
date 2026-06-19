@@ -2,7 +2,7 @@ node_modules/
 /android/
 /assets/
 /select_for_apk/
-
+/www/
 /build_hub.ps1
 /package.json
 /package-lock.json
