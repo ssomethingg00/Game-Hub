@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Memory Pads — Simon Says</title>
+<style>
+  :root {
+    --green:  #27ae60;
+    --red:    #e74c3c;
+    --yellow: #f1c40f;
+    --blue:   #2980b9;
+    --green-lit:  #2ecc71;
+    --red-lit:    #ff6b6b;
+    --yellow-lit: #ffe066;
+    --blue-lit:   #5dade2;
+    --green-glow:  0 0 32px 10px #2ecc71cc;
+    --red-glow:    0 0 32px 10px #ff6b6bcc;
+    --yellow-glow: 0 0 32px 10px #ffe066cc;
+    --blue-glow:   0 0 32px 10px #5dade2cc;
+    --bg: #111;
+    --surface: #1a1a1a;
+    --text: #eeeeee;
+    --subtext: #888;
+    --radius: 18px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%; height: 100%;
+    padding: 12px;
+    gap: 14px;
+  }
+
+  #hud {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 420px;
+    font-size: 0.85rem;
+    color: var(--subtext);
+    letter-spacing: 0.05em;
+  }
+  #hud .stat { text-align: center; }
+  #hud .stat span { display: block; font-size: 1.6rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+  #hud .stat.big span { font-size: 2rem; }
+
+  #phase-label {
+    font-size: 0.9rem;
+    letter-spacing: 0.08em;
+    color: var(--subtext);
+    height: 1.2em;
+    text-align: center;
+    transition: color 0.2s;
+  }
+  #phase-label.player { color: #aaffaa; }
+  #phase-label.simon  { color: #aaaaff; }
+
+  #pad-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    width: min(88vw, 88vh, 380px);
+    height: min(88vw, 88vh, 380px);
+  }
+
+  .pad {
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: none;
+    outline: none;
+    transition: filter 0.07s, box-shadow 0.07s, transform 0.07s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .pad::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius);
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.07s;
+  }
+  .pad:active::after { opacity: 0.18; }
+
+  .pad[data-pad="0"] { background: var(--green); }
+  .pad[data-pad="1"] { background: var(--red); }
+  .pad[data-pad="2"] { background: var(--yellow); }
+  .pad[data-pad="3"] { background: var(--blue); }
+
+  .pad.dim { filter: brightness(0.4); }
+
+  .pad.lit[data-pad="0"] { background: var(--green-lit);  box-shadow: var(--green-glow);  filter: brightness(1.15); transform: scale(1.05); }
+  .pad.lit[data-pad="1"] { background: var(--red-lit);    box-shadow: var(--red-glow);    filter: brightness(1.15); transform: scale(1.05); }
+  .pad.lit[data-pad="2"] { background: var(--yellow-lit); box-shadow: var(--yellow-glow); filter: brightness(1.15); transform: scale(1.05); }
+  .pad.lit[data-pad="3"] { background: var(--blue-lit);   box-shadow: var(--blue-glow);   filter: brightness(1.15); transform: scale(1.05); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pad { transition: filter 0.01s, box-shadow 0.01s; }
+    .pad.lit { transform: none !important; }
+    #gameover-screen { transition: none !important; }
+    #start-screen { transition: none !important; }
+  }
+
+  .pad-label {
+    position: absolute;
+    bottom: 10px;
+    right: 14px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    opacity: 0.45;
+    pointer-events: none;
+    color: #fff;
+    z-index: 2;
+  }
+
+  .pad-shape {
+    pointer-events: none;
+    opacity: 0.55;
+    z-index: 2;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 44px; height: 44px;
+  }
+
+  #controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 9px 22px;
+    border-radius: 40px;
+    border: 2px solid #444;
+    background: #222;
+    color: var(--text);
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    transition: background 0.15s, border-color 0.15s, transform 0.07s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover { background: #2d2d2d; border-color: #666; }
+  .btn:active { transform: scale(0.95); }
+  .btn.primary {
+    background: linear-gradient(135deg, #2980b9, #27ae60);
+    border-color: transparent;
+    color: #fff;
+    padding: 11px 36px;
+    font-size: 1rem;
+  }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.active-toggle { border-color: #e74c3c; color: #ff9999; }
+  .btn.icon-btn { padding: 5px 12px; font-size: 0.8rem; min-width: 40px; }
+
+  #start-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.93);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    gap: 14px;
+    padding: 24px;
+    text-align: center;
+    transition: opacity 0.3s;
+    overflow-y: auto;
+  }
+  #start-screen.hidden { opacity: 0; pointer-events: none; }
+
+  .game-title {
+    font-size: clamp(1.8rem, 8vw, 3rem);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    background: linear-gradient(120deg, var(--green-lit), var(--blue-lit), var(--red-lit), var(--yellow-lit));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle { color: var(--subtext); font-size: 0.9rem; max-width: 280px; line-height: 1.5; }
+  #start-best { color: var(--text); font-size: 0.95rem; }
+
+  #gameover-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.95);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
+    overflow-y: auto;
+  }
+  #gameover-screen.visible { transform: translateY(0); }
+  .go-title { font-size: clamp(1.8rem, 8vw, 2.6rem); font-weight: 800; color: #ff6b6b; }
+  .go-score { font-size: 1.1rem; color: var(--subtext); }
+  .go-score strong { color: var(--text); font-size: 1.5rem; }
+  .go-best { font-size: 0.95rem; color: var(--subtext); }
+  .go-best strong { color: #ffe066; }
+  .go-lifetime { font-size: 0.82rem; color: var(--subtext); line-height: 1.7; }
+  .go-runs { font-size: 0.82rem; color: var(--subtext); }
+
+  #fail-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 25;
+    box-shadow: inset 0 0 60px 20px #e74c3ccc;
+    opacity: 0;
+    transition: opacity 0.08s;
+  }
+  #fail-flash.show { opacity: 1; }
+
+  #mode-row { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: var(--subtext); }
+
+  #how-to { font-size: 0.78rem; color: var(--subtext); max-width: 300px; line-height: 1.6; text-align: center; }
+
+  #timeout-bar-wrap {
+    width: min(88vw, 380px);
+    height: 4px;
+    background: #222;
+    border-radius: 2px;
+    overflow: hidden;
+    visibility: hidden;
+  }
+  #timeout-bar { height: 100%; background: #27ae60; width: 100%; transition: width linear; }
+
+  #key-hint { font-size: 0.72rem; color: #444; letter-spacing: 0.04em; }
+
+  /* Achievement toast */
+  #achievement-toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid #ffe066;
+    border-radius: 14px;
+    padding: 12px 22px;
+    z-index: 50;
+    text-align: center;
+    min-width: 220px;
+    transition: transform 0.35s cubic-bezier(0.22,1,0.36,1), opacity 0.35s;
+    opacity: 0;
+    pointer-events: none;
+  }
+  #achievement-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .ach-title { font-size: 0.7rem; color: #ffe066; letter-spacing: 0.1em; font-weight: 700; }
+  .ach-name  { font-size: 1rem; font-weight: 700; color: var(--text); }
+  .ach-desc  { font-size: 0.78rem; color: var(--subtext); }
+
+  /* Panels */
+  .panel {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.96);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    gap: 14px;
+    padding: 28px 24px;
+    text-align: center;
+    overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .panel.open { opacity: 1; pointer-events: auto; }
+  .panel h2 { font-size: 1.4rem; font-weight: 800; color: var(--text); }
+  .panel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 320px;
+    gap: 12px;
+    font-size: 0.9rem;
+    color: var(--text);
+  }
+  .panel-row label { flex: 1; text-align: left; color: var(--subtext); }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 120px; height: 6px;
+    border-radius: 3px;
+    background: #333;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #2980b9;
+    cursor: pointer;
+  }
+  input[type=text] {
+    background: #222;
+    border: 2px solid #444;
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.9rem;
+    padding: 6px 12px;
+    width: 160px;
+    outline: none;
+  }
+  input[type=text]:focus { border-color: #2980b9; }
+  .ach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; width: 100%; max-width: 340px; }
+  .ach-item {
+    background: #1e1e1e;
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    text-align: left;
+    transition: border-color 0.2s;
+  }
+  .ach-item.unlocked { border-color: #ffe066; }
+  .ach-item .ach-icon { font-size: 1.1rem; }
+  .ach-item .ach-n { font-weight: 700; font-size: 0.82rem; color: var(--text); }
+  .ach-item .ach-d { color: var(--subtext); font-size: 0.72rem; }
+  .divider { width: 100%; max-width: 320px; border: none; border-top: 1px solid #333; }
+
+  /* Pause screen */
+  #pause-screen {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,10,0.88);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 35;
+    gap: 18px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  #pause-screen.open { opacity: 1; pointer-events: auto; }
+  #pause-screen h2 { font-size: 2rem; font-weight: 800; color: var(--text); }
+
+  /* Particle canvas */
+  #particle-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+  #leaderboard { font-size: 0.78rem; color: var(--subtext); line-height: 1.8; text-align: center; }
+
+  @media (max-height: 560px) {
+    #app { gap: 6px; padding: 6px; }
+    #how-to, #key-hint { display: none; }
+  }
+</style>
+
+<!--GAMESHELL_V1-->
+<script>window.GS_CONFIG={"id":"48-simon-says","title":"Simon Says","difficulties":["easy","normal","hard"],"howToPlay":"\u003cp>\u003cstrong>Goal:\u003c/strong> repeat the growing sequence.\u003c/p>\u003cul>\u003cli>\u003cstrong>Controls:\u003c/strong> watch the pattern, then tap it back.\u003c/li>\u003cli>It adds one step each round.\u003c/li>\u003c/ul>","hints":["Say the colours aloud as a rhythm to remember them.","Focus on the new last step each round.","Stay calm — panic breaks the pattern."]};</script>
+<script>
+/* ===========================================================================
+ * GameShell v1 — universal drop-in options overlay for single-file web games.
+ * Adds: Settings (Sound, Music, Difficulty, Theme, Leaderboard, How to Play,
+ * Reset) + an in-play control bar (Hint, Sound, Settings) with a rate-limited
+ * Hint (2 / 24h, refills on new game). Game-agnostic, namespaced, Shadow-DOM
+ * isolated, persisted per game. Safe to inject into any HTML game once.
+ * ======================================================================== */
+(function () {
+  "use strict";
+  if (window.__gsInstalled) return;
+  window.__gsInstalled = true;
+
+  /* ---------- per-game config (injected just above this script) ---------- */
+  var CFG = window.GS_CONFIG || {};
+  var GID = CFG.id || (location.pathname.split("/").filter(Boolean).pop() || "game").replace(/\.html?$/i, "");
+  var TITLE = CFG.title || document.title || "Game";
+  var DIFFS = (CFG.difficulties && CFG.difficulties.length) ? CFG.difficulties : ["easy", "normal", "hard"];
+  var HOWTO = CFG.howToPlay || "<p>Use the on-screen controls (or your keyboard) to play. Your progress is saved automatically on this device.</p>";
+  var TIPS = (CFG.hints && CFG.hints.length) ? CFG.hints.slice() : [
+    "Take your time — there's no rush.",
+    "Plan one move ahead before you commit.",
+    "Stuck? Try a new game from Settings to reset and get fresh hints."
+  ];
+  var HINT_MAX = CFG.hintMax || 2;
+  var WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  /* ----------------------------- storage --------------------------------- */
+  function k(name) { return "gs:" + GID + ":" + name; }
+  function load(name, def) {
+    try { var v = JSON.parse(localStorage.getItem(k(name))); return v == null ? def : v; }
+    catch (e) { return def; }
+  }
+  function save(name, val) { try { localStorage.setItem(k(name), JSON.stringify(val)); } catch (e) {} }
+
+  var SDEF = { v: 1, sound: true, music: true, difficulty: (DIFFS.indexOf("normal") >= 0 ? "normal" : DIFFS[0]), theme: "system" };
+  var settings = Object.assign({}, SDEF, load("settings", {}));
+  if (DIFFS.indexOf(settings.difficulty) < 0) settings.difficulty = SDEF.difficulty;
+  function persist() { save("settings", settings); }
+
+  /* ------------------------- tiny event emitter -------------------------- */
+  var subs = {};
+  function on(ev, fn) { (subs[ev] = subs[ev] || []).push(fn); return function () { subs[ev] = (subs[ev] || []).filter(function (f) { return f !== fn; }); }; }
+  function emit(ev, data) {
+    (subs[ev] || []).forEach(function (fn) { try { fn(data); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("gs:" + ev, { detail: data })); } catch (e) {}
+  }
+
+  /* ============================== AUDIO ================================== */
+  /* Sound = master (everything). Music = looping media + opt-in music gain. */
+  var soundOn = settings.sound, musicOn = settings.music;
+  var acRegistry = [];
+
+  (function patchWebAudio() {
+    var Orig = window.AudioContext || window.webkitAudioContext;
+    if (!Orig || Orig.__gsPatched) return;
+    function Patched() {
+      var ctx = arguments.length ? new Orig(arguments[0]) : new Orig();
+      try {
+        var realDest = ctx.destination;
+        var sfx = ctx.createGain(); sfx.connect(realDest);
+        var music = ctx.createGain(); music.connect(realDest);
+        sfx.gain.value = soundOn ? 1 : 0;
+        music.gain.value = (soundOn && musicOn) ? 1 : 0;
+        Object.defineProperty(ctx, "destination", { get: function () { return sfx; }, configurable: true });
+        ctx.__gsSfx = sfx; ctx.__gsMusic = music; ctx.__gsRealDest = realDest;
+        acRegistry.push(ctx);
+      } catch (e) {}
+      return ctx;
+    }
+    try { Patched.prototype = Orig.prototype; } catch (e) {}
+    Patched.__gsPatched = true;
+    try { window.AudioContext = Patched; } catch (e) {}
+    try { window.webkitAudioContext = Patched; } catch (e) {}
+  })();
+
+  var mediaEls = [];
+  (function patchMedia() {
+    if (!window.HTMLMediaElement || HTMLMediaElement.__gsPatched) return;
+    var proto = HTMLMediaElement.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "muted");
+    if (d && d.get && d.set) {
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get: function () { return (!soundOn) || (this.loop && !musicOn) || d.get.call(this); },
+        set: function (v) { try { d.set.call(this, v); } catch (e) {} }
+      });
+    }
+    var op = proto.play;
+    proto.play = function () {
+      if (mediaEls.indexOf(this) < 0) mediaEls.push(this);
+      try { this.volume = this.volume; } catch (e) {}
+      return op.apply(this, arguments);
+    };
+    HTMLMediaElement.__gsPatched = true;
+  })();
+
+  function applyAudio() {
+    acRegistry.forEach(function (ctx) {
+      try {
+        if (ctx.__gsSfx) ctx.__gsSfx.gain.setValueAtTime(soundOn ? 1 : 0, ctx.currentTime);
+        if (ctx.__gsMusic) ctx.__gsMusic.gain.setValueAtTime((soundOn && musicOn) ? 1 : 0, ctx.currentTime);
+      } catch (e) {}
+    });
+    mediaEls.forEach(function (el) { try { el.muted = el.muted; } catch (e) {} });
+  }
+
+  /* ============================== THEME ================================== */
+  function applyTheme() {
+    var t = settings.theme;
+    var root = document.documentElement;
+    root.classList.remove("gs-theme-light", "gs-theme-dark", "gs-theme-system");
+    root.classList.add("gs-theme-" + t);
+    var eff = t;
+    if (t === "system") {
+      eff = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    try { root.style.colorScheme = (t === "system") ? "light dark" : t; } catch (e) {}
+    var bd = document.getElementById("gs-backdrop");
+    if (bd) bd.style.background = (eff === "dark") ? "#0e1014" : "#eef1f6";
+    if (host) host.setAttribute("data-theme", eff);
+    emit("theme", { theme: t, effective: eff });
+  }
+  if (window.matchMedia) {
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (settings.theme === "system") applyTheme(); }); }
+    catch (e) {}
+  }
+
+  /* ============================== HINTS ================================== */
+  function hintState() {
+    var s = load("hint", { v: 1, spentAt: [], puzzleId: "", lastSeen: Date.now() });
+    var now = Date.now();
+    // anti-tamper: clamp future stamps; ignore large backward clock jumps
+    if (s.lastSeen && now < s.lastSeen - 60000) { s.spentAt = (s.spentAt || []).map(function () { return now; }); }
+    s.spentAt = (s.spentAt || []).map(function (t) { return t > now ? now : t; }).filter(function (t) { return now - t < WINDOW_MS; });
+    s.lastSeen = now;
+    return s;
+  }
+  function hintsLeft() { var s = hintState(); save("hint", s); return Math.max(0, HINT_MAX - s.spentAt.length); }
+  function nextHintMs() {
+    var s = hintState();
+    if (s.spentAt.length < HINT_MAX) return 0;
+    var oldest = Math.min.apply(null, s.spentAt);
+    return Math.max(0, WINDOW_MS - (Date.now() - oldest));
+  }
+  function spendHint() {
+    var s = hintState();
+    if (HINT_MAX - s.spentAt.length <= 0) return false;
+    s.spentAt.push(Date.now()); save("hint", s); return true;
+  }
+  function refillHints(puzzleId) {
+    var s = hintState();
+    if (puzzleId != null && String(puzzleId) === String(s.puzzleId)) { save("hint", s); return; } // same board: no mint
+    s.spentAt = []; s.puzzleId = (puzzleId == null ? "" : String(puzzleId)); save("hint", s);
+    updateHintBadge();
+  }
+  var tipIdx = 0;
+  function provideHintText() {
+    if (typeof CFG.onHint === "function") { try { var r = CFG.onHint(); if (r) return String(r); } catch (e) {} }
+    var t = TIPS[tipIdx % TIPS.length]; tipIdx++; return t;
+  }
+
+  /* ============================ LEADERBOARD ============================= */
+  function getBoard(diff) { var b = load("scores", { v: 1, boards: {} }); return (b.boards && b.boards[diff]) || []; }
+  function submitScore(score, opts) {
+    score = Number(score); if (!isFinite(score)) return;
+    opts = opts || {};
+    var diff = opts.difficulty || settings.difficulty;
+    var name = (opts.name || "You").toString().slice(0, 12);
+    var b = load("scores", { v: 1, boards: {} }); b.boards = b.boards || {};
+    var list = b.boards[diff] || [];
+    list.push({ name: name, score: score, ts: Date.now() });
+    list.sort(function (a, c) { return c.score - a.score; });
+    b.boards[diff] = list.slice(0, 10);
+    save("scores", b);
+    emit("score", { score: score, difficulty: diff });
+    return b.boards[diff];
+  }
+
+  /* ============================== UI SHELL ============================== */
+  var host, root, $bar, $hintBtn, $soundBtn, $modal, $panelHost;
+  var lastFocus = null;
+
+  var CSS = ''
+    + ':host{all:initial}'
+    + '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}'
+    + '.bar{position:fixed;top:0;right:0;display:flex;gap:6px;padding:8px;'
+    + 'padding-top:max(8px,env(safe-area-inset-top));padding-right:max(8px,env(safe-area-inset-right));z-index:5}'
+    + '.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;'
+    + 'min-width:44px;min-height:44px;width:44px;height:44px;border-radius:12px;font-size:20px;line-height:1;'
+    + 'background:var(--c-btn);color:var(--c-tx);box-shadow:0 2px 8px rgba(0,0,0,.25);'
+    + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;transition:transform .08s,background .15s}'
+    + '.btn:hover{background:var(--c-btnH)}.btn:active{transform:scale(.92)}'
+    + '.btn:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;'
+    + 'background:var(--c-acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.btn.off{opacity:.45}'
+    + '.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:10;'
+    + 'padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}'
+    + '.scrim.open{display:flex}'
+    + '.modal{width:min(420px,100%);max-height:88vh;overflow:auto;background:var(--c-bg);color:var(--c-tx);'
+    + 'border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:18px;-webkit-overflow-scrolling:touch}'
+    + '.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+    + '.mtitle{font-size:18px;font-weight:800;letter-spacing:.2px}'
+    + '.x{all:unset;cursor:pointer;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--c-tx)}'
+    + '.x:hover{background:var(--c-btn)}.x:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.sub{font-size:12px;color:var(--c-mut);margin:-2px 0 12px}'
+    + '.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-top:1px solid var(--c-line)}'
+    + '.row .lab{font-size:15px;font-weight:600}.row .desc{font-size:12px;color:var(--c-mut);margin-top:2px}'
+    + '.seg{display:flex;gap:4px;background:var(--c-btn);padding:4px;border-radius:12px}'
+    + '.seg button{all:unset;cursor:pointer;padding:8px 12px;min-height:36px;border-radius:9px;font-size:13px;font-weight:600;color:var(--c-mut);touch-action:manipulation}'
+    + '.seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.seg button:focus-visible{outline:2px solid var(--c-acc)}'
+    + '.sw{all:unset;cursor:pointer;width:52px;height:30px;border-radius:16px;background:var(--c-line);position:relative;transition:background .15s;flex:0 0 auto}'
+    + '.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}'
+    + '.sw[aria-checked=true]{background:var(--c-acc)}.sw[aria-checked=true]::after{left:25px}'
+    + '.sw:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.lbtn{all:unset;cursor:pointer;display:block;width:100%;text-align:left;padding:13px 12px;margin-top:8px;border-radius:12px;'
+    + 'background:var(--c-btn);color:var(--c-tx);font-size:15px;font-weight:600;touch-action:manipulation}'
+    + '.lbtn:hover{background:var(--c-btnH)}.lbtn:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.lbtn.danger{color:#ff6b6b}'
+    + '.back{all:unset;cursor:pointer;font-size:14px;color:var(--c-acc);font-weight:700;margin-bottom:8px;display:inline-flex;gap:4px;align-items:center}'
+    + '.howto{font-size:14px;line-height:1.6}.howto p{margin:8px 0}.howto strong{color:var(--c-acc)}'
+    + '.howto ul{margin:8px 0;padding-left:20px}.howto li{margin:4px 0}'
+    + '.lbtabs{display:flex;gap:6px;margin:6px 0 10px}'
+    + '.lbtabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--c-btn);font-size:13px;font-weight:600;color:var(--c-mut)}'
+    + '.lbtabs button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.lblist{list-style:none;margin:0;padding:0}'
+    + '.lblist li{display:flex;justify-content:space-between;padding:9px 6px;border-top:1px solid var(--c-line);font-size:14px}'
+    + '.lblist li span:first-child{color:var(--c-mut)}'
+    + '.empty{color:var(--c-mut);font-size:14px;text-align:center;padding:18px}'
+    + '.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'background:var(--c-bg);color:var(--c-tx);border:1px solid var(--c-line);padding:12px 16px;border-radius:12px;'
+    + 'max-width:86vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
+    + ':host([data-theme=dark]){--c-bg:#171a21;--c-tx:#f2f4f8;--c-mut:#9aa3b2;--c-line:#2c313c;--c-btn:#222732;--c-btnH:#2c333f;--c-acc:#4f8cff}'
+    + ':host([data-theme=light]){--c-bg:#ffffff;--c-tx:#15181f;--c-mut:#646b7a;--c-line:#e6e8ee;--c-btn:#eef1f6;--c-btnH:#e3e7ef;--c-acc:#2f6bff}'
+    + '@media (prefers-reduced-motion: reduce){*{transition:none!important}}';
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function buildUI() {
+    // backdrop (light DOM, behind everything)
+    var bd = el("div", { id: "gs-backdrop" });
+    bd.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none";
+    document.body.appendChild(bd);
+
+    host = el("div", { id: "gs-host" });
+    host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;isolation:isolate";
+    document.body.appendChild(host);
+    root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    var style = el("style"); style.textContent = CSS; root.appendChild(style);
+
+    // ---- in-play control bar: Hint · Sound · Settings ----
+    $bar = el("div", { class: "bar" });
+    $hintBtn = el("button", { class: "btn", "aria-label": "Hint", title: "Hint" }, "💡");
+    $hintBtn.appendChild(el("span", { class: "badge" }, String(HINT_MAX)));
+    $soundBtn = el("button", { class: "btn", "aria-label": "Toggle sound", title: "Sound" }, "🔊");
+    var $setBtn = el("button", { class: "btn", "aria-label": "Settings", title: "Settings" }, "⚙️");
+    $bar.appendChild($hintBtn); $bar.appendChild($soundBtn); $bar.appendChild($setBtn);
+    root.appendChild($bar);
+
+    // ---- modal scrim + container ----
+    $modal = el("div", { class: "scrim", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
+    $panelHost = el("div", { class: "modal" });
+    $modal.appendChild($panelHost);
+    root.appendChild($modal);
+
+    $hintBtn.addEventListener("click", doHint);
+    $soundBtn.addEventListener("click", function () { setSound(!soundOn); });
+    $setBtn.addEventListener("click", openSettings);
+    $modal.addEventListener("click", function (e) { if (e.target === $modal) closeModal(); });
+    root.addEventListener("keydown", function (e) { if (e.key === "Escape" && $modal.classList.contains("open")) closeModal(); trapFocus(e); });
+
+    updateSoundBtn(); updateHintBadge();
+  }
+
+  function updateSoundBtn() { if ($soundBtn) { $soundBtn.textContent = soundOn ? "🔊" : "🔇"; $soundBtn.classList.toggle("off", !soundOn); } }
+  function updateHintBadge() {
+    if (!$hintBtn) return;
+    var left = hintsLeft();
+    var b = $hintBtn.querySelector(".badge");
+    if (b) b.textContent = String(left);
+    $hintBtn.classList.toggle("off", left === 0);
+  }
+
+  /* ----------------------------- panels --------------------------------- */
+  function openModal(render) {
+    lastFocus = document.activeElement;
+    render();
+    $modal.classList.add("open");
+    var f = $panelHost.querySelector("button,[tabindex],input"); if (f) f.focus();
+  }
+  function closeModal() {
+    $modal.classList.remove("open");
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  }
+  function trapFocus(e) {
+    if (e.key !== "Tab" || !$modal.classList.contains("open")) return;
+    var f = $panelHost.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function header(title, withBack) {
+    var h = el("div", { class: "mhead" });
+    var left = el("div");
+    if (withBack) { var b = el("button", { class: "back", "aria-label": "Back to settings" }, "‹ Back"); b.addEventListener("click", openSettings); left.appendChild(b); }
+    left.appendChild(el("div", { class: "mtitle" }, title));
+    var x = el("button", { class: "x", "aria-label": "Close" }, "✕"); x.addEventListener("click", closeModal);
+    h.appendChild(left); h.appendChild(x); return h;
+  }
+
+  function renderSettings() {
+    $panelHost.innerHTML = "";
+    $panelHost.setAttribute("aria-label", "Settings");
+    $panelHost.appendChild(header("Settings"));
+    $panelHost.appendChild(el("div", { class: "sub" }, TITLE));
+
+    // Sound
+    $panelHost.appendChild(toggleRow("Sound", "All game audio", soundOn, function (v) { setSound(v); }));
+    // Music
+    $panelHost.appendChild(toggleRow("Music", "Background music only", musicOn, function (v) { setMusic(v); }));
+
+    // Difficulty
+    var dr = el("div", { class: "row" });
+    var dl = el("div"); dl.appendChild(el("div", { class: "lab" }, "Difficulty"));
+    dl.appendChild(el("div", { class: "desc" }, "Applies on your next new game"));
+    dr.appendChild(dl);
+    dr.appendChild(segment(DIFFS.map(cap), DIFFS.indexOf(settings.difficulty), function (i) {
+      settings.difficulty = DIFFS[i]; persist(); emit("difficulty", { difficulty: settings.difficulty });
+    }));
+    $panelHost.appendChild(dr);
+
+    // Theme
+    var tr = el("div", { class: "row" });
+    var tl = el("div"); tl.appendChild(el("div", { class: "lab" }, "Theme"));
+    tl.appendChild(el("div", { class: "desc" }, "System · Light · Dark"));
+    tr.appendChild(tl);
+    var TH = ["system", "light", "dark"];
+    tr.appendChild(segment(["System", "Light", "Dark"], TH.indexOf(settings.theme), function (i) {
+      settings.theme = TH[i]; persist(); applyTheme();
+    }));
+    $panelHost.appendChild(tr);
+
+    // Leaderboard / How to Play / Reset
+    var lb = el("button", { class: "lbtn" }, "🏆  Leaderboard"); lb.addEventListener("click", function () { openModal(renderLeaderboard); });
+    var ht = el("button", { class: "lbtn" }, "❓  How to Play"); ht.addEventListener("click", function () { openModal(renderHowTo); });
+    var rs = el("button", { class: "lbtn danger" }, "↺  Reset progress"); rs.addEventListener("click", resetProgress);
+    $panelHost.appendChild(lb); $panelHost.appendChild(ht); $panelHost.appendChild(rs);
+  }
+
+  function renderHowTo() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("How to Play", true));
+    $panelHost.appendChild(el("div", { class: "howto" }, HOWTO));
+  }
+
+  var lbActive = null;
+  function renderLeaderboard() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("Leaderboard", true));
+    if (lbActive == null) lbActive = settings.difficulty;
+    var tabs = el("div", { class: "lbtabs" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { "aria-pressed": String(d === lbActive) }, cap(d));
+      b.addEventListener("click", function () { lbActive = d; renderLeaderboard(); });
+      tabs.appendChild(b);
+    });
+    $panelHost.appendChild(tabs);
+    var list = getBoard(lbActive);
+    if (!list.length) { $panelHost.appendChild(el("div", { class: "empty" }, "No scores yet.\nPlay a game to set a record!")); return; }
+    var ul = el("ul", { class: "lblist" });
+    list.forEach(function (r, i) {
+      var li = el("li");
+      li.appendChild(el("span", null, (i + 1) + ". " + r.name));
+      li.appendChild(el("span", null, String(r.score)));
+      ul.appendChild(li);
+    });
+    $panelHost.appendChild(ul);
+  }
+
+  function toggleRow(lab, desc, val, onChange) {
+    var r = el("div", { class: "row" });
+    var l = el("div"); l.appendChild(el("div", { class: "lab" }, lab)); l.appendChild(el("div", { class: "desc" }, desc));
+    var sw = el("button", { class: "sw", role: "switch", "aria-checked": String(!!val), "aria-label": lab });
+    sw.addEventListener("click", function () { var nv = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(nv)); onChange(nv); });
+    r.appendChild(l); r.appendChild(sw); return r;
+  }
+  function segment(labels, active, onPick) {
+    var s = el("div", { class: "seg", role: "group" });
+    labels.forEach(function (lab, i) {
+      var b = el("button", { "aria-pressed": String(i === active) }, lab);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(s.children, function (c, j) { c.setAttribute("aria-pressed", String(j === i)); });
+        onPick(i);
+      });
+      s.appendChild(b);
+    });
+    return s;
+  }
+
+  /* --------------------------- behaviours -------------------------------- */
+  function setSound(v) { soundOn = settings.sound = !!v; persist(); applyAudio(); updateSoundBtn(); emit("sound", { on: soundOn }); }
+  function setMusic(v) { musicOn = settings.music = !!v; persist(); applyAudio(); emit("music", { on: musicOn }); }
+
+  function doHint() {
+    var left = hintsLeft();
+    if (left <= 0) {
+      var ms = nextHintMs(); var h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000);
+      toast("No hints left. Next in " + h + "h " + m + "m — or start a new game.");
+      return;
+    }
+    if (!spendHint()) return;
+    updateHintBadge();
+    toast("💡 " + provideHintText());
+    emit("hint", { left: hintsLeft() });
+  }
+
+  function resetProgress() {
+    if (!confirm("Reset ALL saved progress and high scores for " + TITLE + "? This cannot be undone.")) return;
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (key && key.indexOf("gs:" + GID + ":") === 0) rm.push(key); }
+      rm.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {}
+    emit("reset", {});
+    toast("Progress reset. Reloading…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+
+  var toastT;
+  function toast(msg) {
+    var t = root.querySelector(".toast");
+    if (!t) { t = el("div", { class: "toast" }); root.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+
+  function openSettings() { openModal(renderSettings); }
+
+  /* ----------------------------- public API ------------------------------ */
+  window.GameShell = {
+    version: 1,
+    config: function (o) { Object.assign(CFG, o || {}); if (o) { if (o.howToPlay) HOWTO = o.howToPlay; if (o.hints) TIPS = o.hints.slice(); } return this; },
+    getDifficulty: function () { return settings.difficulty; },
+    onDifficulty: function (fn) { return on("difficulty", function (d) { fn(d.difficulty); }); },
+    setDifficulty: function (d) { if (DIFFS.indexOf(d) >= 0) { settings.difficulty = d; persist(); emit("difficulty", { difficulty: d }); } },
+    isSoundOn: function () { return soundOn; },
+    isMusicOn: function () { return musicOn; },
+    isMuted: function () { return !soundOn; },
+    submitScore: submitScore,
+    getScores: getBoard,
+    newGame: function (puzzleId) { refillHints(puzzleId); emit("newgame", { puzzleId: puzzleId }); },
+    useHint: doHint,
+    hintsLeft: hintsLeft,
+    onHint: function (fn) { CFG.onHint = fn; return this; },
+    openSettings: openSettings,
+    openHowToPlay: function () { openModal(renderHowTo); },
+    openLeaderboard: function () { openModal(renderLeaderboard); },
+    on: on,
+    routeMusic: function (node, ctx) { try { if (ctx && ctx.__gsMusic && node && node.connect) { node.connect(ctx.__gsMusic); return true; } } catch (e) {} return false; }
+  };
+
+  /* ------------------------------ boot ----------------------------------- */
+  function boot() {
+    // ensure a viewport meta exists for mobile
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = el("meta", { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" });
+      document.head.appendChild(m);
+    }
+    buildUI();
+    applyTheme();
+    applyAudio();
+    emit("ready", { id: GID });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+<!--/GAMESHELL_V1-->
+</head>
+<body>
+
+<div id="fail-flash" role="alert" aria-live="assertive" aria-atomic="true"></div>
+<canvas id="particle-canvas" aria-hidden="true"></canvas>
+
+<div id="achievement-toast" role="status" aria-live="polite">
+  <div class="ach-title">ACHIEVEMENT UNLOCKED</div>
+  <div class="ach-name" id="ach-toast-name"></div>
+  <div class="ach-desc" id="ach-toast-desc"></div>
+</div>
+
+<!-- Start Screen -->
+<div id="start-screen" role="dialog" aria-modal="true" aria-label="Memory Pads Start Screen">
+  <div class="game-title">MEMORY PADS</div>
+  <p class="subtitle">Watch the sequence of lights and sounds — then repeat it exactly. Each round adds one more step.</p>
+  <p id="start-best"></p>
+  <div id="leaderboard"></div>
+  <div id="mode-row">
+    <span>Mode:</span>
+    <button class="btn" id="mode-btn-start" onclick="toggleMode()">Normal</button>
+  </div>
+  <button class="btn primary" onclick="startGame()">PLAY</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn icon-btn" onclick="openPanel('settings-panel')" aria-label="Settings">&#9881; Settings</button>
+    <button class="btn icon-btn" onclick="openPanel('profile-panel')" aria-label="Profile">&#128100; Profile</button>
+  </div>
+  <p id="how-to" class="how-to">4 colored pads &middot; watch the glow &middot; tap in order &middot; don't mistake</p>
+</div>
+
+<!-- Game Over Screen -->
+<div id="gameover-screen" role="dialog" aria-modal="true" aria-label="Game Over">
+  <div class="go-title">GAME OVER</div>
+  <div class="go-score">You reached round <strong id="go-round">&#8212;</strong></div>
+  <div class="go-best">Best: <strong id="go-best">&#8212;</strong></div>
+  <div class="go-runs" id="go-runs"></div>
+  <div class="go-lifetime" id="go-lifetime"></div>
+  <div id="mode-row-go" style="display:flex;align-items:center;gap:10px;font-size:0.82rem;color:var(--subtext);">
+    <span>Mode:</span>
+    <button class="btn" id="mode-btn-go" onclick="toggleMode()">Normal</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+    <button class="btn primary" onclick="startGame()">PLAY AGAIN</button>
+    <button class="btn icon-btn" id="share-btn" onclick="shareScore()" aria-label="Share score">Share</button>
+  </div>
+</div>
+
+<!-- Pause Screen -->
+<div id="pause-screen" role="dialog" aria-modal="true" aria-label="Game Paused">
+  <h2>PAUSED</h2>
+  <button class="btn primary" onclick="resumeGame()">Resume</button>
+  <button class="btn icon-btn" onclick="openPanel('settings-panel')">&#9881; Settings</button>
+  <button class="btn icon-btn" onclick="openPanel('profile-panel')">&#128100; Profile</button>
+  <button class="btn" onclick="confirmQuit()">Quit Game</button>
+</div>
+
+<!-- Settings Panel -->
+<div id="settings-panel" class="panel" role="dialog" aria-modal="true" aria-label="Settings">
+  <h2>Settings</h2>
+  <div class="panel-row">
+    <label for="sfx-vol">SFX Volume</label>
+    <input type="range" id="sfx-vol" min="0" max="100" value="70" oninput="setSFXVol(this.value)">
+    <span id="sfx-vol-val">70%</span>
+  </div>
+  <div class="panel-row">
+    <label for="music-vol">Music Volume</label>
+    <input type="range" id="music-vol" min="0" max="100" value="30" oninput="setMusicVol(this.value)">
+    <span id="music-vol-val">30%</span>
+  </div>
+  <div class="panel-row">
+    <label>Mute All</label>
+    <button class="btn icon-btn" id="mute-toggle-settings" onclick="toggleMute()">&#128266; On</button>
+  </div>
+  <div class="panel-row">
+    <label>Colorblind Shapes</label>
+    <button class="btn icon-btn" id="colorblind-btn" onclick="toggleColorblind()">Off</button>
+  </div>
+  <hr class="divider">
+  <div class="panel-row" style="font-size:0.78rem;color:var(--subtext);flex-direction:column;gap:6px;">
+    <span>Reset all saved data?</span>
+    <button class="btn icon-btn" style="border-color:#e74c3c;color:#ff9999;" onclick="confirmReset()">Reset Data</button>
+  </div>
+  <button class="btn primary" onclick="closePanel('settings-panel')">Done</button>
+</div>
+
+<!-- Profile Panel -->
+<div id="profile-panel" class="panel" role="dialog" aria-modal="true" aria-label="Player Profile">
+  <h2>Profile</h2>
+  <div class="panel-row">
+    <label for="player-name-input">Name</label>
+    <input type="text" id="player-name-input" maxlength="20" placeholder="Your name" oninput="savePlayerName(this.value)" aria-label="Player name">
+  </div>
+  <div style="font-size:0.78rem;color:var(--subtext);text-align:left;width:100%;max-width:320px;line-height:1.9;" id="profile-stats"></div>
+  <hr class="divider">
+  <h2 style="font-size:1.1rem;">Achievements</h2>
+  <div class="ach-grid" id="achievements-grid"></div>
+  <button class="btn primary" onclick="closePanel('profile-panel')">Done</button>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div id="hud" role="region" aria-label="Game status">
+    <div class="stat">
+      <label>ROUND</label>
+      <span id="hud-round" aria-live="polite" aria-atomic="true">&#8212;</span>
+    </div>
+    <div class="stat big">
+      <label>BEST</label>
+      <span id="hud-best">&#8212;</span>
+    </div>
+    <div class="stat" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <div style="display:flex;gap:4px;">
+        <button class="btn icon-btn" id="mute-btn" onclick="toggleMute()" title="Mute/Unmute (M)" aria-label="Toggle mute">&#128266;</button>
+        <button class="btn icon-btn" id="pause-btn" onclick="togglePause()" title="Pause (P)" aria-label="Pause game" style="display:none;">&#9208;</button>
+        <button class="btn icon-btn" onclick="openPanel('settings-panel')" aria-label="Settings" style="font-size:0.75rem;">&#9881;</button>
+      </div>
+      <button class="btn" id="mode-btn-game" onclick="toggleMode()" style="padding:5px 12px;font-size:0.75rem;">Normal</button>
+    </div>
+  </div>
+
+  <div id="phase-label" aria-live="polite" aria-atomic="true">&#8212;</div>
+
+  <div id="timeout-bar-wrap" role="progressbar" aria-label="Input timeout" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+    <div id="timeout-bar"></div>
+  </div>
+
+  <div id="pad-grid" role="group" aria-label="Simon Pads">
+    <button class="pad dim" data-pad="0" onpointerdown="padPressed(0)" aria-label="Green pad (Q or 1)">
+      <span class="pad-label" aria-hidden="true">G</span>
+      <svg class="pad-shape" viewBox="0 0 44 44" aria-hidden="true" style="display:none;" id="shape-0">
+        <circle cx="22" cy="22" r="16" fill="none" stroke="white" stroke-width="3"/>
+      </svg>
+    </button>
+    <button class="pad dim" data-pad="1" onpointerdown="padPressed(1)" aria-label="Red pad (W or 2)">
+      <span class="pad-label" aria-hidden="true">R</span>
+      <svg class="pad-shape" viewBox="0 0 44 44" aria-hidden="true" style="display:none;" id="shape-1">
+        <rect x="10" y="10" width="24" height="24" fill="none" stroke="white" stroke-width="3"/>
+      </svg>
+    </button>
+    <button class="pad dim" data-pad="2" onpointerdown="padPressed(2)" aria-label="Yellow pad (A or 3)">
+      <span class="pad-label" aria-hidden="true">Y</span>
+      <svg class="pad-shape" viewBox="0 0 44 44" aria-hidden="true" style="display:none;" id="shape-2">
+        <polygon points="22,8 38,36 6,36" fill="none" stroke="white" stroke-width="3"/>
+      </svg>
+    </button>
+    <button class="pad dim" data-pad="3" onpointerdown="padPressed(3)" aria-label="Blue pad (S or 4)">
+      <span class="pad-label" aria-hidden="true">B</span>
+      <svg class="pad-shape" viewBox="0 0 44 44" aria-hidden="true" style="display:none;" id="shape-3">
+        <polygon points="22,6 27,17 40,17 30,25 34,37 22,30 10,37 14,25 4,17 17,17" fill="none" stroke="white" stroke-width="2.2"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="controls"></div>
+  <div id="key-hint" aria-hidden="true">Keyboard: Q &middot; W &middot; A &middot; S &nbsp;|&nbsp; P = Pause &nbsp;|&nbsp; M = Mute</div>
+</div>
+
+<script>
+// =========================================================
+// NAMESPACED KEYS & SAFE STORAGE
+// =========================================================
+var NS = '48-simon-says_';
+var KEYS = {
+  profile:      NS+'profile',
+  bestRound:    NS+'bestRound',
+  mute:         NS+'mute',
+  mode:         NS+'mode',
+  sfxVol:       NS+'sfxVol',
+  musicVol:     NS+'musicVol',
+  colorblind:   NS+'colorblind',
+  achievements: NS+'achievements',
+  topRuns:      NS+'topRuns',
+  version:      NS+'version',
+};
+var SAVE_VERSION = 2;
+
+function lsGet(key, fb) {
+  if (fb === undefined) fb = null;
+  try { var v = localStorage.getItem(key); return v !== null ? v : fb; } catch(e) { return fb; }
+}
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch(e) {} }
+function lsGetJSON(key, fb) {
+  try { var v = localStorage.getItem(key); return v ? JSON.parse(v) : fb; } catch(e) { return fb; }
+}
+function lsSetJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+function lsRemove(key) { try { localStorage.removeItem(key); } catch(e) {} }
+
+// =========================================================
+// MIGRATION
+// =========================================================
+function migrateData() {
+  try {
+    var ver = parseInt(lsGet(KEYS.version, '0'));
+    if (ver < 1) {
+      var ob = localStorage.getItem('simonBestRound');
+      var om = localStorage.getItem('simonMute');
+      var od = localStorage.getItem('simonMode');
+      if (ob) lsSet(KEYS.bestRound, ob);
+      if (om) lsSet(KEYS.mute, om);
+      if (od) lsSet(KEYS.mode, od);
+    }
+    lsSet(KEYS.version, SAVE_VERSION);
+  } catch(e) {}
+}
+
+// =========================================================
+// PLAYER PROFILE
+// =========================================================
+var ADJECTIVES = ['Swift','Mighty','Clever','Brave','Sharp','Bold','Cool','Lucky'];
+var NOUNS = ['Falcon','Tiger','Wolf','Eagle','Panda','Fox','Shark','Lynx'];
+var profile = null;
+
+function ensureProfile() {
+  profile = lsGetJSON(KEYS.profile, null);
+  if (!profile) {
+    var adj  = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+    var noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+    profile = {
+      id: (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36),
+      name: adj + noun,
+      gamesPlayed: 0, bestRound: 0, totalLevel: 0,
+      totalCorrect: 0, gamesNormal: 0, gamesStrict: 0,
+    };
+    saveProfile();
+  }
+}
+function saveProfile() { lsSetJSON(KEYS.profile, profile); }
+function savePlayerName(name) {
+  if (!profile) return;
+  profile.name = name.trim() || profile.name;
+  saveProfile();
+}
+function updateProfileStats(r) {
+  if (!profile) return;
+  profile.gamesPlayed++;
+  profile.totalLevel += r;
+  if (r > profile.bestRound) profile.bestRound = r;
+  if (strictMode) profile.gamesStrict++; else profile.gamesNormal++;
+  saveProfile();
+}
+
+// =========================================================
+// STATE
+// =========================================================
+var sequence = [], playerIndex = 0, round = 0, bestRound = 0;
+var isSimonTurn = false, gameActive = false, muted = false, strictMode = false;
+var paused = false, sfxVol = 0.70, musicVol = 0.30, colorblindMode = false;
+var noTimeoutThisGame = true, normalModeRetry = false;
+var INPUT_TIMEOUT = 5000;
+var inputTimer = null;
+
+// =========================================================
+// GAMESHELL DIFFICULTY BRIDGE
+// =========================================================
+// The shell exposes easy/normal/hard. This game's challenge is playback speed
+// (how fast Simon flashes), the starting sequence length, and the per-step
+// input time. We map shell difficulty onto those:
+//   easy   -> slower flashes, single-step start, longer input window
+//   normal -> the game's original defaults (unchanged)
+//   hard   -> faster flashes, longer start (2 steps), shorter input window
+// flashMul scales BOTH the flash duration and the gap from getSpeed().
+var GS_DIFF_CFG = {
+  easy:   { flashMul: 1.35, startLen: 1, inputTimeout: 7000 },
+  normal: { flashMul: 1.00, startLen: 1, inputTimeout: 5000 },
+  hard:   { flashMul: 0.70, startLen: 2, inputTimeout: 3500 }
+};
+// Active config for the CURRENT game; captured at startGame() so a mid-game
+// difficulty change can't disrupt a run (matches "applies on next new game").
+var gsActiveDiff = 'normal';
+var gsActiveCfg = GS_DIFF_CFG.normal;
+
+function gsResolveDiff() {
+  if (window.GameShell && typeof window.GameShell.getDifficulty === 'function') {
+    try {
+      var d = window.GameShell.getDifficulty();
+      if (d && GS_DIFF_CFG[d]) return d;
+    } catch (e) {}
+  }
+  return 'normal';
+}
+
+function getSpeed(r) {
+  var base;
+  if (r <= 5)       base = [420, 210];
+  else if (r <= 9)  base = [320, 160];
+  else if (r <= 13) base = [230, 115];
+  else              base = [165, 85];
+  var mul = (gsActiveCfg && gsActiveCfg.flashMul) || 1;
+  return [Math.round(base[0] * mul), Math.round(base[1] * mul)];
+}
+
+// =========================================================
+// TOP RUNS
+// =========================================================
+var topRuns = [];
+function addTopRun(r) {
+  topRuns.push(r);
+  topRuns.sort(function(a,b){return b-a;});
+  if (topRuns.length > 5) topRuns = topRuns.slice(0, 5);
+  lsSetJSON(KEYS.topRuns, topRuns);
+}
+function loadTopRuns() { topRuns = lsGetJSON(KEYS.topRuns, []); }
+
+// =========================================================
+// ACHIEVEMENTS
+// =========================================================
+var ACHIEVEMENT_DEFS = [
+  {id:'first_game',   icon:'&#127918;', name:'First Game',     desc:'Play your first game'},
+  {id:'round_10',     icon:'&#128313;', name:'Ten Deep',       desc:'Reach round 10'},
+  {id:'round_20',     icon:'&#127942;', name:'Memory Master',  desc:'Reach round 20'},
+  {id:'strict_10',    icon:'&#9889;',   name:'Strict Mind',    desc:'Reach round 10 in Strict mode'},
+  {id:'five_games',   icon:'&#128257;', name:'Committed',      desc:'Play 5 games'},
+  {id:'no_timeout_10',icon:'&#9201;',   name:'Lightning Fast', desc:'Reach round 10 without any timeout'},
+  {id:'beat_best',    icon:'&#11014;',  name:'Personal Best',  desc:'Beat your previous best round'},
+  {id:'strict_5',     icon:'&#128548;', name:'Strict Start',   desc:'Reach round 5 in Strict mode'},
+];
+var unlockedAchs = {};
+
+function loadAchievements() { unlockedAchs = lsGetJSON(KEYS.achievements, {}); }
+function saveAchievements() { lsSetJSON(KEYS.achievements, unlockedAchs); }
+function unlockAchievement(id) {
+  if (unlockedAchs[id]) return;
+  unlockedAchs[id] = Date.now();
+  saveAchievements();
+  var def = null;
+  for (var i = 0; i < ACHIEVEMENT_DEFS.length; i++) {
+    if (ACHIEVEMENT_DEFS[i].id === id) { def = ACHIEVEMENT_DEFS[i]; break; }
+  }
+  if (def) showAchievementToast(def);
+}
+function checkAchievements(r, isGameOver) {
+  if (!profile) return;
+  if (profile.gamesPlayed >= 1)   unlockAchievement('first_game');
+  if (r >= 10)                    unlockAchievement('round_10');
+  if (r >= 20)                    unlockAchievement('round_20');
+  if (strictMode && r >= 5)       unlockAchievement('strict_5');
+  if (strictMode && r >= 10)      unlockAchievement('strict_10');
+  if (profile.gamesPlayed >= 5)   unlockAchievement('five_games');
+  if (noTimeoutThisGame && r >= 10) unlockAchievement('no_timeout_10');
+  if (isGameOver && r > 0 && profile.gamesPlayed > 1 && r > bestRound) unlockAchievement('beat_best');
+}
+
+var achToastQueue = [], achToastShowing = false;
+function showAchievementToast(def) {
+  achToastQueue.push(def);
+  if (!achToastShowing) drainAchQueue();
+}
+function drainAchQueue() {
+  if (!achToastQueue.length) { achToastShowing = false; return; }
+  achToastShowing = true;
+  var def = achToastQueue.shift();
+  var toast = document.getElementById('achievement-toast');
+  document.getElementById('ach-toast-name').innerHTML = def.icon + ' ' + def.name;
+  document.getElementById('ach-toast-desc').textContent = def.desc;
+  toast.classList.add('show');
+  setTimeout(function() {
+    toast.classList.remove('show');
+    setTimeout(drainAchQueue, 400);
+  }, 2800);
+}
+
+// =========================================================
+// PERSISTENCE
+// =========================================================
+function loadPrefs() {
+  migrateData(); ensureProfile(); loadAchievements(); loadTopRuns();
+  bestRound      = parseInt(lsGet(KEYS.bestRound, '0')) || 0;
+  muted          = lsGet(KEYS.mute, 'false') === 'true';
+  strictMode     = lsGet(KEYS.mode, 'normal') === 'strict';
+  sfxVol         = parseFloat(lsGet(KEYS.sfxVol, '0.70'));
+  musicVol       = parseFloat(lsGet(KEYS.musicVol, '0.30'));
+  colorblindMode = lsGet(KEYS.colorblind, 'false') === 'true';
+  applyMute(); applyMode(); updateBestDisplay(); applyColorblind();
+  var sv = document.getElementById('sfx-vol');
+  var mv = document.getElementById('music-vol');
+  if (sv) { sv.value = Math.round(sfxVol * 100); document.getElementById('sfx-vol-val').textContent = sv.value + '%'; }
+  if (mv) { mv.value = Math.round(musicVol * 100); document.getElementById('music-vol-val').textContent = mv.value + '%'; }
+  updateColorblindBtn();
+}
+function savePrefs() {
+  lsSet(KEYS.bestRound, bestRound); lsSet(KEYS.mute, muted);
+  lsSet(KEYS.mode, strictMode ? 'strict' : 'normal');
+  lsSet(KEYS.sfxVol, sfxVol); lsSet(KEYS.musicVol, musicVol);
+  lsSet(KEYS.colorblind, colorblindMode);
+}
+
+// =========================================================
+// WEBAUDIO
+// =========================================================
+var audioCtx = null, masterGain = null, sfxGainNode = null, musicGain = null, musicStarted = false;
+var PAD_FREQ = [392, 494, 330, 262];
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = muted ? 0 : 1;
+    masterGain.connect(audioCtx.destination);
+    sfxGainNode = audioCtx.createGain();
+    sfxGainNode.gain.value = sfxVol;
+    sfxGainNode.connect(masterGain);
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = musicVol;
+    musicGain.connect(masterGain);
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(freq, durationMs, type, gain) {
+  if (!type) type = 'sine';
+  if (gain === undefined) gain = 0.55;
+  try {
+    var ctx = getAudioCtx(), osc = ctx.createOscillator(), vol = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    vol.gain.setValueAtTime(gain * sfxVol, ctx.currentTime);
+    vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + durationMs / 1000);
+    osc.connect(vol); vol.connect(masterGain || ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + durationMs / 1000 + 0.05);
+  } catch(e) {}
+}
+function playPadTone(padIdx, durationMs) { playTone(PAD_FREQ[padIdx], durationMs, 'sine', 0.55); }
+function playFail() {
+  if (muted) return;
+  try {
+    var ctx = getAudioCtx(), osc = ctx.createOscillator(), vol = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(110, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.5);
+    vol.gain.setValueAtTime(0.5 * sfxVol, ctx.currentTime);
+    vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.55);
+    osc.connect(vol); vol.connect(masterGain || ctx.destination);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+}
+function playSuccess() {
+  if (muted) return;
+  try {
+    var ctx = getAudioCtx();
+    var freqs = [523, 659, 784];
+    for (var i = 0; i < freqs.length; i++) {
+      (function(f, idx) {
+        var osc = ctx.createOscillator(), vol = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, ctx.currentTime + idx * 0.07);
+        vol.gain.setValueAtTime(0, ctx.currentTime + idx * 0.07);
+        vol.gain.linearRampToValueAtTime(0.3 * sfxVol, ctx.currentTime + idx * 0.07 + 0.04);
+        vol.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + idx * 0.07 + 0.25);
+        osc.connect(vol); vol.connect(masterGain || ctx.destination);
+        osc.start(ctx.currentTime + idx * 0.07); osc.stop(ctx.currentTime + idx * 0.07 + 0.3);
+      })(freqs[i], i);
+    }
+  } catch(e) {}
+}
+
+function startMusic() {
+  if (musicStarted || muted) return;
+  musicStarted = true;
+  try {
+    var ctx = getAudioCtx();
+    var lfo = ctx.createOscillator(), lfoG = ctx.createGain();
+    var osc1 = ctx.createOscillator(), osc2 = ctx.createOscillator(), osc3 = ctx.createOscillator();
+    var mix = ctx.createGain();
+    lfo.type = 'sine'; lfo.frequency.value = 0.25; lfoG.gain.value = 0.012;
+    lfo.connect(lfoG); lfoG.connect(osc1.frequency); lfoG.connect(osc2.frequency);
+    osc1.type = 'sine'; osc1.frequency.value = 55;
+    osc2.type = 'sine'; osc2.frequency.value = 82.5;
+    osc3.type = 'triangle'; osc3.frequency.value = 110;
+    mix.gain.value = musicVol * 0.35;
+    osc1.connect(mix); osc2.connect(mix); osc3.connect(mix); mix.connect(musicGain);
+    osc1.start(); osc2.start(); osc3.start(); lfo.start();
+    function pulse() {
+      if (!musicStarted || muted) return;
+      try {
+        var c2 = getAudioCtx(), p = c2.createOscillator(), g = c2.createGain();
+        p.type = 'sine'; p.frequency.value = 165;
+        g.gain.setValueAtTime(0, c2.currentTime);
+        g.gain.linearRampToValueAtTime(musicVol * 0.06, c2.currentTime + 0.08);
+        g.gain.exponentialRampToValueAtTime(0.001, c2.currentTime + 0.8);
+        p.connect(g); g.connect(musicGain);
+        p.start(c2.currentTime); p.stop(c2.currentTime + 0.85);
+      } catch(e) {}
+      setTimeout(pulse, 2000);
+    }
+    pulse();
+  } catch(e) {}
+}
+
+function setSFXVol(v) {
+  sfxVol = parseInt(v) / 100;
+  document.getElementById('sfx-vol-val').textContent = v + '%';
+  if (sfxGainNode) sfxGainNode.gain.value = sfxVol;
+  savePrefs();
+}
+function setMusicVol(v) {
+  musicVol = parseInt(v) / 100;
+  document.getElementById('music-vol-val').textContent = v + '%';
+  if (musicGain) musicGain.gain.value = musicVol;
+  savePrefs();
+}
+
+// =========================================================
+// PARTICLES
+// =========================================================
+var canvas = document.getElementById('particle-canvas');
+var pctx = canvas.getContext('2d');
+var particles = [];
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+var PAD_COLORS_BRIGHT = ['#2ecc71','#ff6b6b','#ffe066','#5dade2'];
+function spawnParticles(padIdx, x, y) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var color = PAD_COLORS_BRIGHT[padIdx];
+  for (var i = 0; i < 12; i++) {
+    var angle = Math.random() * Math.PI * 2, speed = 1.5 + Math.random() * 3;
+    particles.push({
+      x: x, y: y,
+      vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+      r: 3 + Math.random() * 4, color: color,
+      life: 1, decay: 0.025 + Math.random() * 0.02
+    });
+  }
+}
+function animateParticles() {
+  pctx.clearRect(0, 0, canvas.width, canvas.height);
+  var alive = [];
+  for (var i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    if (p.life <= 0) continue;
+    pctx.globalAlpha = p.life;
+    pctx.fillStyle = p.color;
+    pctx.beginPath(); pctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); pctx.fill();
+    p.x += p.vx; p.y += p.vy; p.vy += 0.08; p.life -= p.decay;
+    alive.push(p);
+  }
+  particles = alive;
+  pctx.globalAlpha = 1;
+  requestAnimationFrame(animateParticles);
+}
+animateParticles();
+
+// =========================================================
+// PAD VISUALS
+// =========================================================
+var padEls = Array.from(document.querySelectorAll('.pad'));
+function lightPad(idx, on) {
+  var el = padEls[idx];
+  if (on) { el.classList.add('lit'); el.classList.remove('dim'); }
+  else    { el.classList.remove('lit'); el.classList.add('dim'); }
+}
+function flashPad(idx, durationMs) {
+  return new Promise(function(resolve) {
+    lightPad(idx, true); playPadTone(idx, durationMs);
+    setTimeout(function() { lightPad(idx, false); resolve(); }, durationMs);
+  });
+}
+function dimAllPads() { padEls.forEach(function(el){ el.classList.remove('lit'); el.classList.add('dim'); }); }
+function normalAllPads() { padEls.forEach(function(el){ el.classList.remove('lit','dim'); }); }
+
+// =========================================================
+// COLORBLIND
+// =========================================================
+function toggleColorblind() { colorblindMode = !colorblindMode; applyColorblind(); savePrefs(); updateColorblindBtn(); }
+function applyColorblind() {
+  document.querySelectorAll('.pad-shape').forEach(function(s){ s.style.display = colorblindMode ? 'block' : 'none'; });
+}
+function updateColorblindBtn() {
+  var btn = document.getElementById('colorblind-btn');
+  if (btn) btn.textContent = colorblindMode ? 'On' : 'Off';
+}
+
+// =========================================================
+// FAIL FLASH
+// =========================================================
+var failFlashEl = document.getElementById('fail-flash');
+function showFailFlash() {
+  failFlashEl.classList.add('show');
+  failFlashEl.setAttribute('aria-label', 'Wrong!');
+  setTimeout(function(){ failFlashEl.classList.remove('show'); failFlashEl.removeAttribute('aria-label'); }, 350);
+}
+
+// =========================================================
+// TIMEOUT BAR
+// =========================================================
+var timeoutBarWrap = document.getElementById('timeout-bar-wrap');
+var timeoutBarEl   = document.getElementById('timeout-bar');
+function startTimeoutBar() {
+  timeoutBarEl.style.transition = 'none'; timeoutBarEl.style.width = '100%'; timeoutBarEl.offsetWidth;
+  timeoutBarEl.style.transition = 'width ' + INPUT_TIMEOUT + 'ms linear'; timeoutBarEl.style.width = '0%';
+  timeoutBarWrap.setAttribute('aria-valuenow', '100');
+}
+function stopTimeoutBar() {
+  timeoutBarEl.style.transition = 'none'; timeoutBarEl.style.width = '0%';
+  timeoutBarWrap.setAttribute('aria-valuenow', '0');
+}
+
+// =========================================================
+// PHASE LABEL & HUD
+// =========================================================
+var phaseLabelEl = document.getElementById('phase-label');
+function setPhase(text, cls) { phaseLabelEl.textContent = text; phaseLabelEl.className = cls || ''; }
+function updateHUD() { document.getElementById('hud-round').textContent = gameActive ? round : '—'; updateBestDisplay(); }
+function updateBestDisplay() { var b = bestRound || 0; document.getElementById('hud-best').textContent = b > 0 ? b : '—'; }
+
+// =========================================================
+// COUNT-UP
+// =========================================================
+function animateCountUp(el, target, dur) {
+  var start = performance.now();
+  function frame(now) {
+    var t = Math.min(1, (now - start) / dur);
+    var ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = Math.round(ease * target);
+    if (t < 1) requestAnimationFrame(frame); else el.textContent = target;
+  }
+  requestAnimationFrame(frame);
+}
+
+// =========================================================
+// GAME FLOW
+// =========================================================
+function startGame() {
+  getAudioCtx(); startMusic();
+  // GameShell: capture difficulty for THIS run (locks in for the whole game),
+  // apply its input-timeout, and signal a brand-new game (refills hints).
+  gsActiveDiff = gsResolveDiff();
+  gsActiveCfg  = GS_DIFF_CFG[gsActiveDiff] || GS_DIFF_CFG.normal;
+  INPUT_TIMEOUT = gsActiveCfg.inputTimeout;
+  if (window.GameShell && typeof window.GameShell.newGame === 'function') {
+    try { window.GameShell.newGame(); } catch (e) {}
+  }
+  document.getElementById('start-screen').classList.add('hidden');
+  document.getElementById('gameover-screen').classList.remove('visible');
+  document.getElementById('pause-btn').style.display = 'inline-block';
+  sequence = []; playerIndex = 0; round = 0; gameActive = true; paused = false; noTimeoutThisGame = true;
+  // Harder difficulties begin with a longer sequence: pre-seed (startLen-1)
+  // steps so the very first playback is already startLen long.
+  var preSeed = Math.max(0, (gsActiveCfg.startLen || 1) - 1);
+  for (var s = 0; s < preSeed; s++) sequence.push(Math.floor(Math.random() * 4));
+  dimAllPads(); updateHUD(); nextRound();
+}
+
+function nextRound() {
+  round++; playerIndex = 0;
+  sequence.push(Math.floor(Math.random() * 4));
+  updateHUD(); setPhase("Simon's turn...", 'simon'); dimAllPads();
+  timeoutBarWrap.style.visibility = 'hidden'; stopTimeoutBar();
+  setTimeout(function(){ playSequence(); }, 600);
+}
+
+function playSequence() {
+  isSimonTurn = true;
+  var speed = getSpeed(round);
+  var padOn = speed[0], gap = speed[1];
+  var i = 0;
+  function playNext() {
+    if (i >= sequence.length) {
+      isSimonTurn = false; setPhase("Your turn!", 'player'); normalAllPads();
+      timeoutBarWrap.style.visibility = 'visible'; startInputTimeout();
+      return;
+    }
+    if (paused) { setTimeout(playNext, 100); return; }
+    flashPad(sequence[i], padOn).then(function() {
+      i++;
+      setTimeout(playNext, gap);
+    });
+  }
+  playNext();
+}
+
+function delay(ms) { return new Promise(function(r){ setTimeout(r, ms); }); }
+
+// =========================================================
+// PAUSE
+// =========================================================
+function togglePause() { if (!gameActive) return; if (paused) resumeGame(); else pauseGame(); }
+function pauseGame() {
+  if (!gameActive || paused) return; paused = true; clearInputTimeout(); stopTimeoutBar();
+  document.getElementById('pause-screen').classList.add('open');
+  document.getElementById('pause-btn').textContent = '&#9654;'; setPhase('Paused', '');
+}
+function resumeGame() {
+  if (!paused) return; paused = false;
+  document.getElementById('pause-screen').classList.remove('open');
+  document.getElementById('pause-btn').innerHTML = '&#9208;';
+  closePanel('settings-panel'); closePanel('profile-panel');
+  if (!isSimonTurn && gameActive) {
+    setPhase("Your turn!", 'player');
+    timeoutBarWrap.style.visibility = 'visible'; startInputTimeout();
+  }
+}
+function confirmQuit() {
+  if (confirm('Quit this game?')) {
+    paused = false; gameActive = false;
+    document.getElementById('pause-screen').classList.remove('open');
+    document.getElementById('pause-btn').style.display = 'none';
+    showGameOver();
+  }
+}
+
+// =========================================================
+// INPUT HANDLING
+// =========================================================
+function padPressed(idx) {
+  if (!audioCtx) getAudioCtx();
+  if (paused) return;
+  if (isSimonTurn || !gameActive) return;
+  if (phaseLabelEl.className !== 'player') return;
+  clearInputTimeout();
+  var speed = getSpeed(round);
+  var padOn = speed[0];
+  var flashDur = Math.min(padOn, 280);
+  var el = padEls[idx], rect = el.getBoundingClientRect();
+  spawnParticles(idx, rect.left + rect.width / 2, rect.top + rect.height / 2);
+  var haps = [[40],[40,20,40],[60],[30,10,30,10,30]];
+  if (navigator.vibrate) navigator.vibrate(haps[idx] || [40]);
+  if (idx === sequence[playerIndex]) {
+    lightPad(idx, true); playPadTone(idx, flashDur);
+    setTimeout(function(){ lightPad(idx, false); }, flashDur);
+    playerIndex++;
+    if (playerIndex === sequence.length) {
+      clearInputTimeout(); stopTimeoutBar(); timeoutBarWrap.style.visibility = 'hidden';
+      setPhase('Correct!', 'player');
+      if (round > bestRound) { bestRound = round; savePrefs(); updateBestDisplay(); }
+      checkAchievements(round, false);
+      if (round === 20) {
+        playSuccess();
+        setTimeout(function(){
+          setPhase('Round 20! Keep going!', 'player');
+          setTimeout(function(){ nextRound(); }, 1400);
+        }, 400);
+      } else { setTimeout(function(){ nextRound(); }, 800); }
+    } else { startInputTimeout(); }
+  } else { wrongPress(idx); }
+}
+
+function wrongPress(pressedIdx) {
+  clearInputTimeout(); stopTimeoutBar(); timeoutBarWrap.style.visibility = 'hidden';
+  gameActive = false; isSimonTurn = false; noTimeoutThisGame = false;
+  playFail(); showFailFlash();
+  if (navigator.vibrate) navigator.vibrate([80, 40, 120]);
+  var correctIdx = sequence[playerIndex];
+  dimAllPads();
+  if (pressedIdx !== undefined && pressedIdx !== correctIdx) lightPad(pressedIdx, true);
+  setPhase('Wrong!', '');
+  setTimeout(function(){
+    normalAllPads(); lightPad(correctIdx, true);
+    setPhase('Correct was: ' + ['Green','Red','Yellow','Blue'][correctIdx], '');
+    setTimeout(function(){
+      lightPad(correctIdx, false); dimAllPads();
+      if (strictMode) { showGameOver(); }
+      else { setPhase('Replaying...', 'simon'); setTimeout(function(){ retryRound(); }, 600); }
+    }, 900);
+  }, 400);
+}
+
+function retryRound() {
+  if (!normalModeRetry) { normalModeRetry = true; playerIndex = 0; gameActive = true; playSequence(); }
+  else { normalModeRetry = false; showGameOver(); }
+}
+
+function inputTimeout() { if (!gameActive || isSimonTurn) return; noTimeoutThisGame = false; wrongPress(undefined); }
+function startInputTimeout() { clearInputTimeout(); startTimeoutBar(); inputTimer = setTimeout(inputTimeout, INPUT_TIMEOUT); }
+function clearInputTimeout() { if (inputTimer) { clearTimeout(inputTimer); inputTimer = null; } stopTimeoutBar(); }
+
+// =========================================================
+// GAME OVER
+// =========================================================
+function showGameOver() {
+  gameActive = false; normalModeRetry = false; paused = false;
+  dimAllPads(); setPhase('--', ''); timeoutBarWrap.style.visibility = 'hidden';
+  document.getElementById('pause-screen').classList.remove('open');
+  document.getElementById('pause-btn').style.display = 'none';
+  updateProfileStats(round); checkAchievements(round, true); addTopRun(round);
+  // GameShell: submit score on game over. Higher-is-better — we report the
+  // longest sequence length the player was challenged with this run, on the
+  // per-difficulty leaderboard for the difficulty this run was played at.
+  if (window.GameShell && typeof window.GameShell.submitScore === 'function') {
+    try { window.GameShell.submitScore(sequence.length, { difficulty: gsActiveDiff }); } catch (e) {}
+  }
+  var goRoundEl = document.getElementById('go-round');
+  goRoundEl.textContent = '0';
+  document.getElementById('gameover-screen').classList.add('visible');
+  setTimeout(function(){
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) animateCountUp(goRoundEl, round, 700);
+    else goRoundEl.textContent = round;
+  }, 300);
+  document.getElementById('go-best').textContent = bestRound > 0 ? 'Round ' + bestRound : '--';
+  document.getElementById('go-runs').textContent = topRuns.length > 0 ? 'Best runs: ' + topRuns.join(' - ') : '';
+  if (profile) {
+    var avg = profile.gamesPlayed > 0 ? Math.round(profile.totalLevel / profile.gamesPlayed) : 0;
+    document.getElementById('go-lifetime').innerHTML =
+      'Games played: ' + profile.gamesPlayed + ' &nbsp;|&nbsp; Avg level: ' + avg + ' &nbsp;|&nbsp; Best ever: ' + profile.bestRound;
+  }
+  updateHUD(); updateLeaderboard();
+}
+
+// =========================================================
+// LEADERBOARD
+// =========================================================
+function updateLeaderboard() {
+  var el = document.getElementById('leaderboard');
+  if (!el) return;
+  if (topRuns.length === 0) { el.textContent = ''; return; }
+  el.innerHTML = '<span style="color:#888;font-size:0.78rem;">Top runs: ' + topRuns.join(' &nbsp;&middot;&nbsp; ') + '</span>';
+}
+
+// =========================================================
+// SHARE
+// =========================================================
+function shareScore() {
+  var text = 'I reached Round ' + round + ' in Memory Pads (Simon Says)!';
+  if (navigator.share) { navigator.share({title: 'Memory Pads', text: text}).catch(function(){}); }
+  else {
+    try {
+      navigator.clipboard.writeText(text).then(function(){
+        var btn = document.getElementById('share-btn'), orig = btn.textContent;
+        btn.textContent = 'Copied!'; setTimeout(function(){ btn.textContent = orig; }, 1800);
+      });
+    } catch(e) { alert(text); }
+  }
+}
+
+// =========================================================
+// TOGGLES
+// =========================================================
+function toggleMute() { muted = !muted; applyMute(); savePrefs(); }
+function applyMute() {
+  var mb = document.getElementById('mute-btn');
+  if (mb) mb.innerHTML = muted ? '&#128263;' : '&#128266;';
+  var ms = document.getElementById('mute-toggle-settings');
+  if (ms) ms.innerHTML = muted ? '&#128263; Off' : '&#128266; On';
+  if (masterGain) masterGain.gain.value = muted ? 0 : 1;
+}
+function toggleMode() {
+  if (gameActive) return; strictMode = !strictMode; applyMode(); savePrefs();
+}
+function applyMode() {
+  var lbl = strictMode ? 'Strict' : 'Normal';
+  var ids = ['mode-btn-start','mode-btn-go','mode-btn-game'];
+  for (var i = 0; i < ids.length; i++) {
+    var el = document.getElementById(ids[i]);
+    if (el) { el.textContent = lbl; el.classList.toggle('active-toggle', strictMode); }
+  }
+}
+
+// =========================================================
+// PANELS
+// =========================================================
+function openPanel(id) {
+  closePanel('settings-panel'); closePanel('profile-panel');
+  if (id === 'profile-panel') populateProfile();
+  document.getElementById(id).classList.add('open');
+}
+function closePanel(id) { document.getElementById(id).classList.remove('open'); }
+
+function populateProfile() {
+  if (!profile) return;
+  var ni = document.getElementById('player-name-input'); if (ni) ni.value = profile.name;
+  var avg = profile.gamesPlayed > 0 ? Math.round(profile.totalLevel / profile.gamesPlayed) : 0;
+  var se = document.getElementById('profile-stats');
+  if (se) {
+    se.innerHTML = '<b>ID:</b> ' + profile.id.substring(0,8) + '&hellip;<br>' +
+      '<b>Games played:</b> ' + profile.gamesPlayed + '<br>' +
+      '<b>Best round:</b> ' + profile.bestRound + '<br>' +
+      '<b>Avg level:</b> ' + avg + '<br>' +
+      '<b>Normal games:</b> ' + profile.gamesNormal + ' &nbsp;<b>Strict games:</b> ' + profile.gamesStrict;
+  }
+  var grid = document.getElementById('achievements-grid');
+  if (grid) {
+    var html = '';
+    for (var i = 0; i < ACHIEVEMENT_DEFS.length; i++) {
+      var a = ACHIEVEMENT_DEFS[i], u = !!unlockedAchs[a.id];
+      html += '<div class="ach-item ' + (u ? 'unlocked' : '') + '">' +
+        '<div class="ach-icon">' + (u ? a.icon : '&#128274;') + '</div>' +
+        '<div class="ach-n">' + a.name + '</div>' +
+        '<div class="ach-d">' + a.desc + '</div></div>';
+    }
+    grid.innerHTML = html;
+  }
+}
+
+// =========================================================
+// RESET
+// =========================================================
+function confirmReset() {
+  if (confirm('Reset ALL saved data? This cannot be undone.')) {
+    var kvals = Object.values ? Object.values(KEYS) : Object.keys(KEYS).map(function(k){ return KEYS[k]; });
+    kvals.forEach(function(k){ lsRemove(k); });
+    ['simonBestRound','simonMute','simonMode'].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    profile = null; bestRound = 0; unlockedAchs = {}; topRuns = [];
+    loadPrefs(); closePanel('settings-panel'); alert('Data reset complete.');
+  }
+}
+
+// =========================================================
+// KEYBOARD
+// =========================================================
+var KEY_MAP = {KeyQ:0, KeyW:1, KeyA:2, KeyS:3, Digit1:0, Digit2:1, Digit3:2, Digit4:3};
+document.addEventListener('keydown', function(e) {
+  if (e.code in KEY_MAP) { e.preventDefault(); padPressed(KEY_MAP[e.code]); }
+  if (e.code === 'Space' || e.code === 'Enter') {
+    e.preventDefault();
+    var go = document.getElementById('gameover-screen');
+    var ss = document.getElementById('start-screen');
+    var ps = document.getElementById('pause-screen');
+    if (ps.classList.contains('open')) resumeGame();
+    else if (go.classList.contains('visible') || !ss.classList.contains('hidden')) startGame();
+  }
+  if (e.code === 'KeyM') toggleMute();
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (!document.getElementById('gameover-screen').classList.contains('visible')) togglePause();
+  }
+});
+
+// =========================================================
+// GAMESHELL HINT
+// =========================================================
+// A real, meaningful hint: the game knows the full target sequence, so reveal
+// ONLY the next single colour the player must press. Returns null when it's not
+// the player's turn (nothing to reveal yet) so the shell falls back to a tip.
+var GS_PAD_NAMES = ['Green', 'Red', 'Yellow', 'Blue'];
+if (window.GameShell && typeof window.GameShell.onHint === 'function') {
+  window.GameShell.onHint(function () {
+    if (!gameActive || isSimonTurn || paused) return null;
+    if (phaseLabelEl.className !== 'player') return null;
+    var nextIdx = sequence[playerIndex];
+    if (nextIdx === undefined || GS_PAD_NAMES[nextIdx] === undefined) return null;
+    return 'The next colour is ' + GS_PAD_NAMES[nextIdx] + '.';
+  });
+}
+
+// =========================================================
+// INIT
+// =========================================================
+loadPrefs();
+updateLeaderboard();
+document.getElementById('start-best').textContent = bestRound > 0 ? 'Your best: Round ' + bestRound : 'No best yet -- go!';
+</script>
+</body>
+</html>

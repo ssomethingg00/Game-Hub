@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Tower of Hanoi</title>
+<style>
+  :root {
+    --bg1: #1a1a2e;
+    --bg2: #16213e;
+    --peg-color: #5C3317;
+    --base-color: #8B5E3C;
+    --base-light: #C4884F;
+    --text: #ECF0F1;
+    --text-dim: #95a5a6;
+    --accent: #e67e22;
+    --btn-bg: #2c3e50;
+    --btn-hover: #3d5166;
+    --btn-active: #1a252f;
+    --win-bg: rgba(0,0,0,0.88);
+    --selected-glow: rgba(52,152,219,0.7);
+    --illegal-color: #e74c3c;
+    --hud-bg: rgba(0,0,0,0.35);
+    --disk-colors: #E74C3C, #E67E22, #F1C40F, #2ECC71, #3498DB, #9B59B6, #1ABC9C, #E91E63;
+  }
+  /* Disk tween animation */
+  @keyframes diskPlace {
+    0%  { transform: translateX(-50%) translateY(-18px); }
+    60% { transform: translateX(-50%) translateY(4px); }
+    100%{ transform: translateX(-50%) translateY(0); }
+  }
+  @keyframes diskPickup {
+    0%  { transform: translateX(-50%) translateY(0); }
+    100%{ transform: translateX(-50%) translateY(-18px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes diskPlace  { 0%,100%{ transform: translateX(-50%) translateY(0); } }
+    @keyframes diskPickup { 0%,100%{ transform: translateX(-50%) translateY(-18px); } }
+  }
+  .disk.placing  { animation: diskPlace  0.18s ease forwards; }
+  .disk.lifting  { animation: diskPickup 0.12s ease forwards; }
+
+  /* Toast notifications */
+  #toast-container {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
+  .toast {
+    background: rgba(30,40,60,0.97);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 12px;
+    padding: 10px 20px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    animation: toastIn 0.3s ease, toastOut 0.4s ease 2.2s forwards;
+    white-space: nowrap;
+  }
+  .toast.achievement { border-color: #f1c40f; color: #f1c40f; }
+  @keyframes toastIn  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; transform:translateY(-10px); } }
+
+  /* Pause overlay */
+  #pause-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 90;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+  }
+  #pause-overlay.show { display: flex; }
+  #pause-overlay h2 { font-size: 2.5rem; color: var(--text); letter-spacing: 3px; }
+  #pause-overlay p  { color: var(--text-dim); font-size: 0.9rem; }
+
+  /* Profile / Stats / Settings modals */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.82);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: linear-gradient(160deg,#1e3a5f,#0d2137);
+    border: 2px solid #3498DB;
+    border-radius: 20px;
+    padding: 28px 32px;
+    max-width: 420px;
+    width: 92%;
+    box-shadow: 0 0 40px rgba(52,152,219,0.3);
+    animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    overflow-y: auto;
+    max-height: 90vh;
+  }
+  .modal-box h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 16px; color: var(--accent); text-align:center; }
+  .modal-close {
+    position: absolute;
+    top: 14px; right: 18px;
+    background: none; border: none;
+    color: var(--text-dim); font-size: 1.5rem;
+    cursor: pointer; line-height: 1;
+  }
+  .modal-close:hover { color: var(--text); }
+  .modal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    font-size: 0.88rem;
+  }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-row label { color: var(--text-dim); }
+  .modal-row span  { font-weight: 700; color: var(--text); }
+  .profile-name-input {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+    font-weight: 600;
+    padding: 6px 10px;
+    width: 180px;
+    outline: none;
+  }
+  .profile-name-input:focus { border-color: var(--accent); }
+  .achiev-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .achiev-badge {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .achiev-badge.unlocked {
+    border-color: #f1c40f;
+    color: #f1c40f;
+    background: rgba(241,196,15,0.07);
+  }
+  .achiev-badge .badge-icon { font-size: 1.4rem; display: block; margin-bottom: 4px; }
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    margin-top: 10px;
+  }
+  .stats-table th {
+    color: var(--text-dim);
+    text-align: left;
+    padding: 4px 6px;
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stats-table td {
+    padding: 5px 6px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    color: var(--text);
+  }
+  .stats-table .gold { color: #f1c40f; font-weight: 700; }
+  .settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    font-size: 0.9rem;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row label { color: var(--text-dim); }
+  input[type=range].vol-slider {
+    -webkit-appearance: none;
+    width: 110px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.2);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range].vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 42px; height: 22px;
+  }
+  .toggle-switch input { display: none; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.15);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 2px; top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+  .toggle-switch input:checked + .toggle-slider::before { transform: translateX(20px); }
+  /* Step counter for auto-solve */
+  #auto-solve-info {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-align: center;
+    height: 18px;
+    margin-top: 2px;
+  }
+  /* Resume banner */
+  #resume-banner {
+    display: none;
+    background: rgba(52,152,219,0.15);
+    border: 1px solid rgba(52,152,219,0.4);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    color: #7fb3d6;
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  #resume-banner.show { display: flex; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: linear-gradient(160deg, var(--bg1), var(--bg2));
+    min-height: 100vh;
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #app {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 10px 20px;
+  }
+  h1 {
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin: 10px 0 6px;
+    text-align: center;
+    background: linear-gradient(90deg, #e67e22, #f1c40f, #e67e22);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* HUD */
+  #hud {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .hud-box {
+    background: var(--hud-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    text-align: center;
+    min-width: 90px;
+  }
+  .hud-label { font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .hud-val { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+  .hud-val.best { color: #f1c40f; }
+  .hud-val.optimal { color: #2ecc71; }
+  .hud-val.perfect { color: #f1c40f; animation: pulse 0.5s ease; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }
+
+  /* Controls bar */
+  #controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+  .disk-selector {
+    display: flex;
+    gap: 3px;
+    background: var(--hud-bg);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 4px;
+  }
+  .disk-btn {
+    width: 34px; height: 34px;
+    border: none; border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .disk-btn:hover { background: var(--btn-hover); color: var(--text); }
+  .disk-btn.active { background: var(--accent); color: #fff; }
+  .btn {
+    height: 36px;
+    padding: 0 16px;
+    border: none; border-radius: 8px;
+    background: var(--btn-bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .btn:hover { background: var(--btn-hover); }
+  .btn:active { background: var(--btn-active); transform: scale(0.96); }
+  .btn.solve-btn { background: #1a6b42; }
+  .btn.solve-btn:hover { background: #228b55; }
+  .btn.solve-btn:disabled { background: #1a3b2a; color: #555; cursor: not-allowed; }
+  .btn.mute-btn { padding: 0 10px; font-size: 1rem; }
+
+  /* Game area */
+  #game-area {
+    width: 100%;
+    position: relative;
+  }
+  #pegs-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Peg */
+  .peg-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+    padding-bottom: 0;
+    transition: filter 0.2s;
+  }
+  .peg-wrapper:hover .peg-post { filter: brightness(1.2); }
+  .peg-wrapper.selected .peg-post { box-shadow: 0 0 0 3px #3498DB, 0 0 18px var(--selected-glow); }
+  .peg-wrapper.selected .peg-base { box-shadow: 0 0 0 2px #3498DB; }
+  .peg-wrapper.shake { animation: shake 0.35s ease; }
+  @keyframes shake {
+    0%,100%{transform:translateX(0)}
+    15%{transform:translateX(-7px)}
+    30%{transform:translateX(7px)}
+    45%{transform:translateX(-5px)}
+    60%{transform:translateX(5px)}
+    75%{transform:translateX(-3px)}
+    88%{transform:translateX(3px)}
+  }
+  .peg-wrapper.illegal-flash .peg-post { background: var(--illegal-color) !important; transition: background 0s; }
+  .peg-label {
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+    height: 16px;
+  }
+  .peg-disks {
+    width: 100%;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    position: relative;
+    /* disks sit on top of the base */
+  }
+  .peg-post {
+    width: 14px;
+    background: var(--peg-color);
+    border-radius: 7px 7px 0 0;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    transition: background 0.2s;
+    z-index: 1;
+    pointer-events: none;
+  }
+  .peg-base {
+    width: 100%;
+    height: 20px;
+    background: linear-gradient(180deg, var(--base-color), var(--base-light));
+    border-radius: 8px;
+    margin-top: 0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    flex-shrink: 0;
+    transition: box-shadow 0.2s;
+  }
+
+  /* Disk */
+  .disk {
+    position: relative;
+    z-index: 2;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    cursor: grab;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    flex-shrink: 0;
+    touch-action: none;
+  }
+  .disk:active { cursor: grabbing; }
+  .disk.lifted {
+    transform: translateY(-16px);
+    box-shadow: 0 12px 24px rgba(0,0,0,0.6);
+    z-index: 10;
+  }
+  .disk.dragging-ghost {
+    opacity: 0.35;
+  }
+
+  /* Win overlay */
+  #win-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--win-bg);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #win-overlay.show { display: flex; }
+  #win-box {
+    background: linear-gradient(160deg, #1e3a5f, #0d2137);
+    border: 2px solid #3498DB;
+    border-radius: 20px;
+    padding: 30px 40px;
+    text-align: center;
+    max-width: 380px;
+    width: 90%;
+    box-shadow: 0 0 40px rgba(52,152,219,0.3);
+    animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  #win-title { font-size: 2rem; font-weight: 900; margin-bottom: 6px; }
+  #win-title.perfect { color: #f1c40f; }
+  #win-title.good    { color: #2ecc71; }
+  #win-title.ok      { color: #3498DB; }
+  #win-subtitle { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 18px; }
+  #win-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .ws {
+    background: rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .ws-label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .ws-val { font-size: 1.3rem; font-weight: 700; }
+  .ws-val.new-best { color: #f1c40f; }
+  #win-buttons { display: flex; gap: 10px; justify-content: center; }
+  #win-buttons .btn { height: 42px; font-size: 0.95rem; padding: 0 20px; }
+
+  /* Confetti canvas */
+  #confetti-canvas {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 99;
+  }
+
+  /* Tutorial tooltip */
+  #tutorial {
+    background: rgba(52,152,219,0.15);
+    border: 1px solid rgba(52,152,219,0.4);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+    color: #7fb3d6;
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    transition: opacity 0.3s;
+  }
+  #tutorial.hidden { opacity: 0; pointer-events: none; }
+
+  /* Status message */
+  #status-msg {
+    height: 22px;
+    font-size: 0.78rem;
+    color: var(--illegal-color);
+    text-align: center;
+    font-weight: 600;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    transition: opacity 0.4s;
+    opacity: 0;
+  }
+  #status-msg.show { opacity: 1; }
+
+  /* Drag ghost element */
+  #drag-ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 1000;
+    border-radius: 6px;
+    display: none;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+    transform: translate(-50%, -50%);
+  }
+
+  /* Responsive peg heights */
+  @media (max-width: 480px) {
+    h1 { font-size: 1.1rem; }
+    .hud-box { min-width: 72px; padding: 5px 8px; }
+    .hud-val { font-size: 1rem; }
+  }
+  /* Share button */
+  .btn.share-btn { background: #1a4b7a; }
+  .btn.share-btn:hover { background: #2060a0; }
+</style>
+
+<!--GAMESHELL_V1-->
+<script>window.GS_CONFIG={"id":"28-tower-of-hanoi","title":"Tower of Hanoi","difficulties":["easy","normal","hard"],"howToPlay":"\u003cp>\u003cstrong>Goal:\u003c/strong> move the whole stack to another peg.\u003c/p>\u003cul>\u003cli>Move one disc at a time.\u003c/li>\u003cli>Never place a bigger disc on a smaller one.\u003c/li>\u003c/ul>","hints":["Move the smallest disc every other turn, always the same direction.","To move N discs, first move N-1 out of the way.","Plan where the biggest disc must end up, then build around it."]};</script>
+<script>
+/* ===========================================================================
+ * GameShell v1 — universal drop-in options overlay for single-file web games.
+ * Adds: Settings (Sound, Music, Difficulty, Theme, Leaderboard, How to Play,
+ * Reset) + an in-play control bar (Hint, Sound, Settings) with a rate-limited
+ * Hint (2 / 24h, refills on new game). Game-agnostic, namespaced, Shadow-DOM
+ * isolated, persisted per game. Safe to inject into any HTML game once.
+ * ======================================================================== */
+(function () {
+  "use strict";
+  if (window.__gsInstalled) return;
+  window.__gsInstalled = true;
+
+  /* ---------- per-game config (injected just above this script) ---------- */
+  var CFG = window.GS_CONFIG || {};
+  var GID = CFG.id || (location.pathname.split("/").filter(Boolean).pop() || "game").replace(/\.html?$/i, "");
+  var TITLE = CFG.title || document.title || "Game";
+  var DIFFS = (CFG.difficulties && CFG.difficulties.length) ? CFG.difficulties : ["easy", "normal", "hard"];
+  var HOWTO = CFG.howToPlay || "<p>Use the on-screen controls (or your keyboard) to play. Your progress is saved automatically on this device.</p>";
+  var TIPS = (CFG.hints && CFG.hints.length) ? CFG.hints.slice() : [
+    "Take your time — there's no rush.",
+    "Plan one move ahead before you commit.",
+    "Stuck? Try a new game from Settings to reset and get fresh hints."
+  ];
+  var HINT_MAX = CFG.hintMax || 2;
+  var WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  /* ----------------------------- storage --------------------------------- */
+  function k(name) { return "gs:" + GID + ":" + name; }
+  function load(name, def) {
+    try { var v = JSON.parse(localStorage.getItem(k(name))); return v == null ? def : v; }
+    catch (e) { return def; }
+  }
+  function save(name, val) { try { localStorage.setItem(k(name), JSON.stringify(val)); } catch (e) {} }
+
+  var SDEF = { v: 1, sound: true, music: true, difficulty: (DIFFS.indexOf("normal") >= 0 ? "normal" : DIFFS[0]), theme: "system" };
+  var settings = Object.assign({}, SDEF, load("settings", {}));
+  if (DIFFS.indexOf(settings.difficulty) < 0) settings.difficulty = SDEF.difficulty;
+  function persist() { save("settings", settings); }
+
+  /* ------------------------- tiny event emitter -------------------------- */
+  var subs = {};
+  function on(ev, fn) { (subs[ev] = subs[ev] || []).push(fn); return function () { subs[ev] = (subs[ev] || []).filter(function (f) { return f !== fn; }); }; }
+  function emit(ev, data) {
+    (subs[ev] || []).forEach(function (fn) { try { fn(data); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("gs:" + ev, { detail: data })); } catch (e) {}
+  }
+
+  /* ============================== AUDIO ================================== */
+  /* Sound = master (everything). Music = looping media + opt-in music gain. */
+  var soundOn = settings.sound, musicOn = settings.music;
+  var acRegistry = [];
+
+  (function patchWebAudio() {
+    var Orig = window.AudioContext || window.webkitAudioContext;
+    if (!Orig || Orig.__gsPatched) return;
+    function Patched() {
+      var ctx = arguments.length ? new Orig(arguments[0]) : new Orig();
+      try {
+        var realDest = ctx.destination;
+        var sfx = ctx.createGain(); sfx.connect(realDest);
+        var music = ctx.createGain(); music.connect(realDest);
+        sfx.gain.value = soundOn ? 1 : 0;
+        music.gain.value = (soundOn && musicOn) ? 1 : 0;
+        Object.defineProperty(ctx, "destination", { get: function () { return sfx; }, configurable: true });
+        ctx.__gsSfx = sfx; ctx.__gsMusic = music; ctx.__gsRealDest = realDest;
+        acRegistry.push(ctx);
+      } catch (e) {}
+      return ctx;
+    }
+    try { Patched.prototype = Orig.prototype; } catch (e) {}
+    Patched.__gsPatched = true;
+    try { window.AudioContext = Patched; } catch (e) {}
+    try { window.webkitAudioContext = Patched; } catch (e) {}
+  })();
+
+  var mediaEls = [];
+  (function patchMedia() {
+    if (!window.HTMLMediaElement || HTMLMediaElement.__gsPatched) return;
+    var proto = HTMLMediaElement.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "muted");
+    if (d && d.get && d.set) {
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get: function () { return (!soundOn) || (this.loop && !musicOn) || d.get.call(this); },
+        set: function (v) { try { d.set.call(this, v); } catch (e) {} }
+      });
+    }
+    var op = proto.play;
+    proto.play = function () {
+      if (mediaEls.indexOf(this) < 0) mediaEls.push(this);
+      try { this.volume = this.volume; } catch (e) {}
+      return op.apply(this, arguments);
+    };
+    HTMLMediaElement.__gsPatched = true;
+  })();
+
+  function applyAudio() {
+    acRegistry.forEach(function (ctx) {
+      try {
+        if (ctx.__gsSfx) ctx.__gsSfx.gain.setValueAtTime(soundOn ? 1 : 0, ctx.currentTime);
+        if (ctx.__gsMusic) ctx.__gsMusic.gain.setValueAtTime((soundOn && musicOn) ? 1 : 0, ctx.currentTime);
+      } catch (e) {}
+    });
+    mediaEls.forEach(function (el) { try { el.muted = el.muted; } catch (e) {} });
+  }
+
+  /* ============================== THEME ================================== */
+  function applyTheme() {
+    var t = settings.theme;
+    var root = document.documentElement;
+    root.classList.remove("gs-theme-light", "gs-theme-dark", "gs-theme-system");
+    root.classList.add("gs-theme-" + t);
+    var eff = t;
+    if (t === "system") {
+      eff = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    try { root.style.colorScheme = (t === "system") ? "light dark" : t; } catch (e) {}
+    var bd = document.getElementById("gs-backdrop");
+    if (bd) bd.style.background = (eff === "dark") ? "#0e1014" : "#eef1f6";
+    if (host) host.setAttribute("data-theme", eff);
+    emit("theme", { theme: t, effective: eff });
+  }
+  if (window.matchMedia) {
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (settings.theme === "system") applyTheme(); }); }
+    catch (e) {}
+  }
+
+  /* ============================== HINTS ================================== */
+  function hintState() {
+    var s = load("hint", { v: 1, spentAt: [], puzzleId: "", lastSeen: Date.now() });
+    var now = Date.now();
+    // anti-tamper: clamp future stamps; ignore large backward clock jumps
+    if (s.lastSeen && now < s.lastSeen - 60000) { s.spentAt = (s.spentAt || []).map(function () { return now; }); }
+    s.spentAt = (s.spentAt || []).map(function (t) { return t > now ? now : t; }).filter(function (t) { return now - t < WINDOW_MS; });
+    s.lastSeen = now;
+    return s;
+  }
+  function hintsLeft() { var s = hintState(); save("hint", s); return Math.max(0, HINT_MAX - s.spentAt.length); }
+  function nextHintMs() {
+    var s = hintState();
+    if (s.spentAt.length < HINT_MAX) return 0;
+    var oldest = Math.min.apply(null, s.spentAt);
+    return Math.max(0, WINDOW_MS - (Date.now() - oldest));
+  }
+  function spendHint() {
+    var s = hintState();
+    if (HINT_MAX - s.spentAt.length <= 0) return false;
+    s.spentAt.push(Date.now()); save("hint", s); return true;
+  }
+  function refillHints(puzzleId) {
+    var s = hintState();
+    if (puzzleId != null && String(puzzleId) === String(s.puzzleId)) { save("hint", s); return; } // same board: no mint
+    s.spentAt = []; s.puzzleId = (puzzleId == null ? "" : String(puzzleId)); save("hint", s);
+    updateHintBadge();
+  }
+  var tipIdx = 0;
+  function provideHintText() {
+    if (typeof CFG.onHint === "function") { try { var r = CFG.onHint(); if (r) return String(r); } catch (e) {} }
+    var t = TIPS[tipIdx % TIPS.length]; tipIdx++; return t;
+  }
+
+  /* ============================ LEADERBOARD ============================= */
+  function getBoard(diff) { var b = load("scores", { v: 1, boards: {} }); return (b.boards && b.boards[diff]) || []; }
+  function submitScore(score, opts) {
+    score = Number(score); if (!isFinite(score)) return;
+    opts = opts || {};
+    var diff = opts.difficulty || settings.difficulty;
+    var name = (opts.name || "You").toString().slice(0, 12);
+    var b = load("scores", { v: 1, boards: {} }); b.boards = b.boards || {};
+    var list = b.boards[diff] || [];
+    list.push({ name: name, score: score, ts: Date.now() });
+    list.sort(function (a, c) { return c.score - a.score; });
+    b.boards[diff] = list.slice(0, 10);
+    save("scores", b);
+    emit("score", { score: score, difficulty: diff });
+    return b.boards[diff];
+  }
+
+  /* ============================== UI SHELL ============================== */
+  var host, root, $bar, $hintBtn, $soundBtn, $modal, $panelHost;
+  var lastFocus = null;
+
+  var CSS = ''
+    + ':host{all:initial}'
+    + '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}'
+    + '.bar{position:fixed;top:0;right:0;display:flex;gap:6px;padding:8px;'
+    + 'padding-top:max(8px,env(safe-area-inset-top));padding-right:max(8px,env(safe-area-inset-right));z-index:5}'
+    + '.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;'
+    + 'min-width:44px;min-height:44px;width:44px;height:44px;border-radius:12px;font-size:20px;line-height:1;'
+    + 'background:var(--c-btn);color:var(--c-tx);box-shadow:0 2px 8px rgba(0,0,0,.25);'
+    + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;transition:transform .08s,background .15s}'
+    + '.btn:hover{background:var(--c-btnH)}.btn:active{transform:scale(.92)}'
+    + '.btn:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;'
+    + 'background:var(--c-acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.btn.off{opacity:.45}'
+    + '.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:10;'
+    + 'padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}'
+    + '.scrim.open{display:flex}'
+    + '.modal{width:min(420px,100%);max-height:88vh;overflow:auto;background:var(--c-bg);color:var(--c-tx);'
+    + 'border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:18px;-webkit-overflow-scrolling:touch}'
+    + '.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+    + '.mtitle{font-size:18px;font-weight:800;letter-spacing:.2px}'
+    + '.x{all:unset;cursor:pointer;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--c-tx)}'
+    + '.x:hover{background:var(--c-btn)}.x:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.sub{font-size:12px;color:var(--c-mut);margin:-2px 0 12px}'
+    + '.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-top:1px solid var(--c-line)}'
+    + '.row .lab{font-size:15px;font-weight:600}.row .desc{font-size:12px;color:var(--c-mut);margin-top:2px}'
+    + '.seg{display:flex;gap:4px;background:var(--c-btn);padding:4px;border-radius:12px}'
+    + '.seg button{all:unset;cursor:pointer;padding:8px 12px;min-height:36px;border-radius:9px;font-size:13px;font-weight:600;color:var(--c-mut);touch-action:manipulation}'
+    + '.seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.seg button:focus-visible{outline:2px solid var(--c-acc)}'
+    + '.sw{all:unset;cursor:pointer;width:52px;height:30px;border-radius:16px;background:var(--c-line);position:relative;transition:background .15s;flex:0 0 auto}'
+    + '.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}'
+    + '.sw[aria-checked=true]{background:var(--c-acc)}.sw[aria-checked=true]::after{left:25px}'
+    + '.sw:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.lbtn{all:unset;cursor:pointer;display:block;width:100%;text-align:left;padding:13px 12px;margin-top:8px;border-radius:12px;'
+    + 'background:var(--c-btn);color:var(--c-tx);font-size:15px;font-weight:600;touch-action:manipulation}'
+    + '.lbtn:hover{background:var(--c-btnH)}.lbtn:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.lbtn.danger{color:#ff6b6b}'
+    + '.back{all:unset;cursor:pointer;font-size:14px;color:var(--c-acc);font-weight:700;margin-bottom:8px;display:inline-flex;gap:4px;align-items:center}'
+    + '.howto{font-size:14px;line-height:1.6}.howto p{margin:8px 0}.howto strong{color:var(--c-acc)}'
+    + '.howto ul{margin:8px 0;padding-left:20px}.howto li{margin:4px 0}'
+    + '.lbtabs{display:flex;gap:6px;margin:6px 0 10px}'
+    + '.lbtabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--c-btn);font-size:13px;font-weight:600;color:var(--c-mut)}'
+    + '.lbtabs button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.lblist{list-style:none;margin:0;padding:0}'
+    + '.lblist li{display:flex;justify-content:space-between;padding:9px 6px;border-top:1px solid var(--c-line);font-size:14px}'
+    + '.lblist li span:first-child{color:var(--c-mut)}'
+    + '.empty{color:var(--c-mut);font-size:14px;text-align:center;padding:18px}'
+    + '.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'background:var(--c-bg);color:var(--c-tx);border:1px solid var(--c-line);padding:12px 16px;border-radius:12px;'
+    + 'max-width:86vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
+    + ':host([data-theme=dark]){--c-bg:#171a21;--c-tx:#f2f4f8;--c-mut:#9aa3b2;--c-line:#2c313c;--c-btn:#222732;--c-btnH:#2c333f;--c-acc:#4f8cff}'
+    + ':host([data-theme=light]){--c-bg:#ffffff;--c-tx:#15181f;--c-mut:#646b7a;--c-line:#e6e8ee;--c-btn:#eef1f6;--c-btnH:#e3e7ef;--c-acc:#2f6bff}'
+    + '@media (prefers-reduced-motion: reduce){*{transition:none!important}}';
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function buildUI() {
+    // backdrop (light DOM, behind everything)
+    var bd = el("div", { id: "gs-backdrop" });
+    bd.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none";
+    document.body.appendChild(bd);
+
+    host = el("div", { id: "gs-host" });
+    host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;isolation:isolate";
+    document.body.appendChild(host);
+    root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    var style = el("style"); style.textContent = CSS; root.appendChild(style);
+
+    // ---- in-play control bar: Hint · Sound · Settings ----
+    $bar = el("div", { class: "bar" });
+    $hintBtn = el("button", { class: "btn", "aria-label": "Hint", title: "Hint" }, "💡");
+    $hintBtn.appendChild(el("span", { class: "badge" }, String(HINT_MAX)));
+    $soundBtn = el("button", { class: "btn", "aria-label": "Toggle sound", title: "Sound" }, "🔊");
+    var $setBtn = el("button", { class: "btn", "aria-label": "Settings", title: "Settings" }, "⚙️");
+    $bar.appendChild($hintBtn); $bar.appendChild($soundBtn); $bar.appendChild($setBtn);
+    root.appendChild($bar);
+
+    // ---- modal scrim + container ----
+    $modal = el("div", { class: "scrim", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
+    $panelHost = el("div", { class: "modal" });
+    $modal.appendChild($panelHost);
+    root.appendChild($modal);
+
+    $hintBtn.addEventListener("click", doHint);
+    $soundBtn.addEventListener("click", function () { setSound(!soundOn); });
+    $setBtn.addEventListener("click", openSettings);
+    $modal.addEventListener("click", function (e) { if (e.target === $modal) closeModal(); });
+    root.addEventListener("keydown", function (e) { if (e.key === "Escape" && $modal.classList.contains("open")) closeModal(); trapFocus(e); });
+
+    updateSoundBtn(); updateHintBadge();
+  }
+
+  function updateSoundBtn() { if ($soundBtn) { $soundBtn.textContent = soundOn ? "🔊" : "🔇"; $soundBtn.classList.toggle("off", !soundOn); } }
+  function updateHintBadge() {
+    if (!$hintBtn) return;
+    var left = hintsLeft();
+    var b = $hintBtn.querySelector(".badge");
+    if (b) b.textContent = String(left);
+    $hintBtn.classList.toggle("off", left === 0);
+  }
+
+  /* ----------------------------- panels --------------------------------- */
+  function openModal(render) {
+    lastFocus = document.activeElement;
+    render();
+    $modal.classList.add("open");
+    var f = $panelHost.querySelector("button,[tabindex],input"); if (f) f.focus();
+  }
+  function closeModal() {
+    $modal.classList.remove("open");
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  }
+  function trapFocus(e) {
+    if (e.key !== "Tab" || !$modal.classList.contains("open")) return;
+    var f = $panelHost.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function header(title, withBack) {
+    var h = el("div", { class: "mhead" });
+    var left = el("div");
+    if (withBack) { var b = el("button", { class: "back", "aria-label": "Back to settings" }, "‹ Back"); b.addEventListener("click", openSettings); left.appendChild(b); }
+    left.appendChild(el("div", { class: "mtitle" }, title));
+    var x = el("button", { class: "x", "aria-label": "Close" }, "✕"); x.addEventListener("click", closeModal);
+    h.appendChild(left); h.appendChild(x); return h;
+  }
+
+  function renderSettings() {
+    $panelHost.innerHTML = "";
+    $panelHost.setAttribute("aria-label", "Settings");
+    $panelHost.appendChild(header("Settings"));
+    $panelHost.appendChild(el("div", { class: "sub" }, TITLE));
+
+    // Sound
+    $panelHost.appendChild(toggleRow("Sound", "All game audio", soundOn, function (v) { setSound(v); }));
+    // Music
+    $panelHost.appendChild(toggleRow("Music", "Background music only", musicOn, function (v) { setMusic(v); }));
+
+    // Difficulty
+    var dr = el("div", { class: "row" });
+    var dl = el("div"); dl.appendChild(el("div", { class: "lab" }, "Difficulty"));
+    dl.appendChild(el("div", { class: "desc" }, "Applies on your next new game"));
+    dr.appendChild(dl);
+    dr.appendChild(segment(DIFFS.map(cap), DIFFS.indexOf(settings.difficulty), function (i) {
+      settings.difficulty = DIFFS[i]; persist(); emit("difficulty", { difficulty: settings.difficulty });
+    }));
+    $panelHost.appendChild(dr);
+
+    // Theme
+    var tr = el("div", { class: "row" });
+    var tl = el("div"); tl.appendChild(el("div", { class: "lab" }, "Theme"));
+    tl.appendChild(el("div", { class: "desc" }, "System · Light · Dark"));
+    tr.appendChild(tl);
+    var TH = ["system", "light", "dark"];
+    tr.appendChild(segment(["System", "Light", "Dark"], TH.indexOf(settings.theme), function (i) {
+      settings.theme = TH[i]; persist(); applyTheme();
+    }));
+    $panelHost.appendChild(tr);
+
+    // Leaderboard / How to Play / Reset
+    var lb = el("button", { class: "lbtn" }, "🏆  Leaderboard"); lb.addEventListener("click", function () { openModal(renderLeaderboard); });
+    var ht = el("button", { class: "lbtn" }, "❓  How to Play"); ht.addEventListener("click", function () { openModal(renderHowTo); });
+    var rs = el("button", { class: "lbtn danger" }, "↺  Reset progress"); rs.addEventListener("click", resetProgress);
+    $panelHost.appendChild(lb); $panelHost.appendChild(ht); $panelHost.appendChild(rs);
+  }
+
+  function renderHowTo() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("How to Play", true));
+    $panelHost.appendChild(el("div", { class: "howto" }, HOWTO));
+  }
+
+  var lbActive = null;
+  function renderLeaderboard() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("Leaderboard", true));
+    if (lbActive == null) lbActive = settings.difficulty;
+    var tabs = el("div", { class: "lbtabs" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { "aria-pressed": String(d === lbActive) }, cap(d));
+      b.addEventListener("click", function () { lbActive = d; renderLeaderboard(); });
+      tabs.appendChild(b);
+    });
+    $panelHost.appendChild(tabs);
+    var list = getBoard(lbActive);
+    if (!list.length) { $panelHost.appendChild(el("div", { class: "empty" }, "No scores yet.\nPlay a game to set a record!")); return; }
+    var ul = el("ul", { class: "lblist" });
+    list.forEach(function (r, i) {
+      var li = el("li");
+      li.appendChild(el("span", null, (i + 1) + ". " + r.name));
+      li.appendChild(el("span", null, String(r.score)));
+      ul.appendChild(li);
+    });
+    $panelHost.appendChild(ul);
+  }
+
+  function toggleRow(lab, desc, val, onChange) {
+    var r = el("div", { class: "row" });
+    var l = el("div"); l.appendChild(el("div", { class: "lab" }, lab)); l.appendChild(el("div", { class: "desc" }, desc));
+    var sw = el("button", { class: "sw", role: "switch", "aria-checked": String(!!val), "aria-label": lab });
+    sw.addEventListener("click", function () { var nv = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(nv)); onChange(nv); });
+    r.appendChild(l); r.appendChild(sw); return r;
+  }
+  function segment(labels, active, onPick) {
+    var s = el("div", { class: "seg", role: "group" });
+    labels.forEach(function (lab, i) {
+      var b = el("button", { "aria-pressed": String(i === active) }, lab);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(s.children, function (c, j) { c.setAttribute("aria-pressed", String(j === i)); });
+        onPick(i);
+      });
+      s.appendChild(b);
+    });
+    return s;
+  }
+
+  /* --------------------------- behaviours -------------------------------- */
+  function setSound(v) { soundOn = settings.sound = !!v; persist(); applyAudio(); updateSoundBtn(); emit("sound", { on: soundOn }); }
+  function setMusic(v) { musicOn = settings.music = !!v; persist(); applyAudio(); emit("music", { on: musicOn }); }
+
+  function doHint() {
+    var left = hintsLeft();
+    if (left <= 0) {
+      var ms = nextHintMs(); var h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000);
+      toast("No hints left. Next in " + h + "h " + m + "m — or start a new game.");
+      return;
+    }
+    if (!spendHint()) return;
+    updateHintBadge();
+    toast("💡 " + provideHintText());
+    emit("hint", { left: hintsLeft() });
+  }
+
+  function resetProgress() {
+    if (!confirm("Reset ALL saved progress and high scores for " + TITLE + "? This cannot be undone.")) return;
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (key && key.indexOf("gs:" + GID + ":") === 0) rm.push(key); }
+      rm.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {}
+    emit("reset", {});
+    toast("Progress reset. Reloading…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+
+  var toastT;
+  function toast(msg) {
+    var t = root.querySelector(".toast");
+    if (!t) { t = el("div", { class: "toast" }); root.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+
+  function openSettings() { openModal(renderSettings); }
+
+  /* ----------------------------- public API ------------------------------ */
+  window.GameShell = {
+    version: 1,
+    config: function (o) { Object.assign(CFG, o || {}); if (o) { if (o.howToPlay) HOWTO = o.howToPlay; if (o.hints) TIPS = o.hints.slice(); } return this; },
+    getDifficulty: function () { return settings.difficulty; },
+    onDifficulty: function (fn) { return on("difficulty", function (d) { fn(d.difficulty); }); },
+    setDifficulty: function (d) { if (DIFFS.indexOf(d) >= 0) { settings.difficulty = d; persist(); emit("difficulty", { difficulty: d }); } },
+    isSoundOn: function () { return soundOn; },
+    isMusicOn: function () { return musicOn; },
+    isMuted: function () { return !soundOn; },
+    submitScore: submitScore,
+    getScores: getBoard,
+    newGame: function (puzzleId) { refillHints(puzzleId); emit("newgame", { puzzleId: puzzleId }); },
+    useHint: doHint,
+    hintsLeft: hintsLeft,
+    onHint: function (fn) { CFG.onHint = fn; return this; },
+    openSettings: openSettings,
+    openHowToPlay: function () { openModal(renderHowTo); },
+    openLeaderboard: function () { openModal(renderLeaderboard); },
+    on: on,
+    routeMusic: function (node, ctx) { try { if (ctx && ctx.__gsMusic && node && node.connect) { node.connect(ctx.__gsMusic); return true; } } catch (e) {} return false; }
+  };
+
+  /* ------------------------------ boot ----------------------------------- */
+  function boot() {
+    // ensure a viewport meta exists for mobile
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = el("meta", { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" });
+      document.head.appendChild(m);
+    }
+    buildUI();
+    applyTheme();
+    applyAudio();
+    emit("ready", { id: GID });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+<!--/GAMESHELL_V1-->
+</head>
+<body>
+<canvas id="confetti-canvas"></canvas>
+<div id="drag-ghost"></div>
+<div id="toast-container"></div>
+
+<!-- Pause overlay -->
+<div id="pause-overlay" role="dialog" aria-label="Game Paused">
+  <h2>PAUSED</h2>
+  <p>Press P or click Resume to continue</p>
+  <button class="btn" id="resume-btn" style="height:44px;font-size:1rem;padding:0 28px;">Resume</button>
+</div>
+
+<!-- Profile modal -->
+<div id="profile-modal" class="modal-overlay" role="dialog" aria-label="Player Profile">
+  <div class="modal-box" style="position:relative;">
+    <button class="modal-close" id="profile-close" aria-label="Close">&times;</button>
+    <h2>Player Profile</h2>
+    <div class="modal-row">
+      <label>Name</label>
+      <input type="text" id="profile-name-input" class="profile-name-input" maxlength="24" aria-label="Player name">
+    </div>
+    <div class="modal-row"><label>Player ID</label><span id="profile-id" style="font-size:0.72rem;color:var(--text-dim);word-break:break-all;"></span></div>
+    <div class="modal-row"><label>Total Games</label><span id="stat-games">0</span></div>
+    <div class="modal-row"><label>Perfect Solves</label><span id="stat-perfect">0</span></div>
+    <div class="modal-row"><label>Total Moves Ever</label><span id="stat-total-moves">0</span></div>
+    <div class="modal-row"><label>Auto-Solve Used</label><span id="stat-autosolve">0</span></div>
+    <h2 style="font-size:1rem;margin-top:16px;">Achievements</h2>
+    <div class="achiev-grid" id="achiev-grid"></div>
+    <div style="margin-top:18px;text-align:center;">
+      <button class="btn" id="reset-profile-btn" style="background:#5a1a1a;font-size:0.8rem;">Reset All Data</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats modal -->
+<div id="stats-modal" class="modal-overlay" role="dialog" aria-label="Statistics">
+  <div class="modal-box" style="position:relative;">
+    <button class="modal-close" id="stats-close" aria-label="Close">&times;</button>
+    <h2>Statistics</h2>
+    <table class="stats-table">
+      <thead><tr><th>Disks</th><th>Solves</th><th>Perfect</th><th>Best Moves</th><th>Best Time</th></tr></thead>
+      <tbody id="stats-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" class="modal-overlay" role="dialog" aria-label="Settings">
+  <div class="modal-box" style="position:relative;">
+    <button class="modal-close" id="settings-close" aria-label="Close">&times;</button>
+    <h2>Settings</h2>
+    <div class="settings-row">
+      <label>Mute All Sound</label>
+      <label class="toggle-switch"><input type="checkbox" id="set-mute"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="settings-row">
+      <label>SFX Volume</label>
+      <input type="range" class="vol-slider" id="set-sfx-vol" min="0" max="100" step="5" aria-label="SFX Volume">
+    </div>
+    <div class="settings-row">
+      <label>Music Volume</label>
+      <input type="range" class="vol-slider" id="set-music-vol" min="0" max="100" step="5" aria-label="Music Volume">
+    </div>
+    <div class="settings-row">
+      <label>Auto-Save Progress</label>
+      <label class="toggle-switch"><input type="checkbox" id="set-autosave" checked><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <h1>Tower of Hanoi</h1>
+
+  <div id="tutorial">Click a peg to pick up its top disk, then click another peg to place it there.</div>
+  <div id="resume-banner">
+    <span id="resume-text"></span>
+    <button class="btn" id="resume-game-btn" style="height:30px;font-size:0.78rem;padding:0 12px;">Resume</button>
+    <button class="btn" id="resume-discard-btn" style="height:30px;font-size:0.78rem;padding:0 12px;background:#5a1a1a;">Discard</button>
+  </div>
+
+  <div id="hud">
+    <div class="hud-box">
+      <div class="hud-label">Moves</div>
+      <div class="hud-val" id="hud-moves">0</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">Optimal</div>
+      <div class="hud-val optimal" id="hud-optimal">7</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">Time</div>
+      <div class="hud-val" id="hud-time">0:00</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">Best Moves</div>
+      <div class="hud-val best" id="hud-best-moves">—</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">Best Time</div>
+      <div class="hud-val best" id="hud-best-time">—</div>
+    </div>
+  </div>
+  <div id="auto-solve-info"></div>
+
+  <div id="controls">
+    <div class="disk-selector" id="disk-selector">
+      <button class="disk-btn active" data-n="3">3</button>
+      <button class="disk-btn" data-n="4">4</button>
+      <button class="disk-btn" data-n="5">5</button>
+      <button class="disk-btn" data-n="6">6</button>
+      <button class="disk-btn" data-n="7">7</button>
+      <button class="disk-btn" data-n="8">8</button>
+    </div>
+    <button class="btn" id="new-btn">&#8635; New Game</button>
+    <button class="btn solve-btn" id="solve-btn">&#9654; Auto-Solve</button>
+    <button class="btn mute-btn" id="mute-btn" title="Toggle sound">&#128266;</button>
+    <button class="btn" id="pause-btn" title="Pause (P)" style="padding:0 10px;">&#9646;&#9646;</button>
+    <button class="btn" id="profile-btn" title="Profile" style="padding:0 10px;">&#128100;</button>
+    <button class="btn" id="stats-btn" title="Statistics" style="padding:0 10px;">&#128202;</button>
+    <button class="btn" id="settings-btn" title="Settings" style="padding:0 10px;">&#9881;</button>
+  </div>
+
+  <div id="game-area">
+    <div id="pegs-container"></div>
+  </div>
+
+  <div id="status-msg"></div>
+</div>
+
+<div id="win-overlay">
+  <div id="win-box">
+    <div id="win-title">Solved!</div>
+    <div id="win-subtitle"></div>
+    <div id="win-stats">
+      <div class="ws"><div class="ws-label">Your Moves</div><div class="ws-val" id="ws-moves"></div></div>
+      <div class="ws"><div class="ws-label">Optimal</div><div class="ws-val" id="ws-optimal"></div></div>
+      <div class="ws"><div class="ws-label">Your Time</div><div class="ws-val" id="ws-time"></div></div>
+      <div class="ws"><div class="ws-label">Best Time</div><div class="ws-val" id="ws-best-time"></div></div>
+    </div>
+    <div id="win-achievements" style="margin-bottom:14px;"></div>
+    <div id="win-buttons">
+      <button class="btn" id="win-replay">&#8635; Play Again</button>
+      <button class="btn" id="win-more">Try More Disks</button>
+      <button class="btn share-btn" id="win-share">&#128279; Share</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// SAVE / LOAD HELPERS  (namespaced, versioned, try/catch)
+// ============================================================
+const NS = '28-tower-of-hanoi_';
+const SAVE_VERSION = 2;
+
+function lsGet(key, fallback = null) {
+  try { const v = localStorage.getItem(NS + key); return v !== null ? JSON.parse(v) : fallback; }
+  catch(e) { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(NS + key, JSON.stringify(val)); } catch(e) {}
+}
+function lsDel(key) {
+  try { localStorage.removeItem(NS + key); } catch(e) {}
+}
+
+// ============================================================
+// PLAYER PROFILE
+// ============================================================
+function loadProfile() {
+  let p = lsGet('profile');
+  if (!p || p.version !== SAVE_VERSION) {
+    const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const names = ['PuzzleMaster','TowerTamer','HanoiHero','DiscDuke','StackSage'];
+    p = {
+      version: SAVE_VERSION,
+      id,
+      name: names[Math.floor(Math.random() * names.length)],
+      totalGames: 0,
+      perfectSolves: 0,
+      totalMoves: 0,
+      autoSolveUsed: 0,
+      achievements: {},
+      perDisk: {}   // { n: { solves, perfect, totalMoves, totalTime } }
+    };
+    lsSet('profile', p);
+  }
+  return p;
+}
+function saveProfile(p) { lsSet('profile', p); }
+
+let profile = loadProfile();
+
+// ============================================================
+// SETTINGS
+// ============================================================
+function loadSettings() {
+  const def = { muted: false, sfxVol: 70, musicVol: 40, autoSave: true };
+  return Object.assign(def, lsGet('settings', {}));
+}
+function saveSettings() { lsSet('settings', settings); }
+
+let settings = loadSettings();
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx = null;
+let muted = settings.muted;
+
+function getAudioCtx() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
+
+function playTone(type, freq, duration, volume = 0.4, delayMs = 0) {
+  if (muted) return;
+  const vol = volume * (settings.sfxVol / 100);
+  if (vol <= 0) return;
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const t = ctx.currentTime + delayMs / 1000;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.start(t); osc.stop(t + duration + 0.01);
+  } catch(e) {}
+}
+
+// Looping background music (procedural)
+let musicNodes = null;
+let musicStarted = false;
+
+function startMusic() {
+  if (muted || settings.musicVol <= 0 || musicStarted) return;
+  musicStarted = true;
+  try {
+    const ctx = getAudioCtx();
+    if (ctx.state === 'suspended') ctx.resume();
+    const gain = ctx.createGain();
+    gain.gain.value = (settings.musicVol / 100) * 0.06;
+    gain.connect(ctx.destination);
+    const notes = [130.81, 164.81, 196, 261.63, 196, 164.81];
+    let idx = 0;
+    function playNext() {
+      if (muted || settings.musicVol <= 0) return;
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = notes[idx % notes.length];
+      osc.connect(gain);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.38);
+      idx++;
+      musicNodes = setTimeout(playNext, 420);
+    }
+    playNext();
+  } catch(e) {}
+}
+
+function stopMusic() {
+  if (musicNodes) { clearTimeout(musicNodes); musicNodes = null; }
+  musicStarted = false;
+}
+
+function sfxPickup() {
+  playTone('sine', 440, 0.08, 0.25);
+  playTone('sine', 550, 0.06, 0.12, 30);
+}
+function sfxPlace() {
+  playTone('triangle', 120, 0.12, 0.35);
+  playTone('triangle', 80, 0.18, 0.3, 20);
+}
+function sfxIllegal() {
+  playTone('sawtooth', 180, 0.08, 0.2);
+  playTone('sawtooth', 160, 0.08, 0.2, 80);
+  playTone('sawtooth', 140, 0.06, 0.15, 160);
+}
+function sfxWin() {
+  const notes = [262,330,392,523,659];
+  notes.forEach((f,i) => playTone('sine', f, 0.3, 0.3, i * 130));
+}
+function sfxAchiev() {
+  playTone('sine', 880, 0.08, 0.2);
+  playTone('sine', 1100, 0.06, 0.1, 90);
+}
+
+// ============================================================
+// ACHIEVEMENTS DEFINITION
+// ============================================================
+const ACHIEVEMENTS = [
+  { id: 'first_solve',    icon: '🏆', name: 'First Solve',        desc: 'Complete any puzzle' },
+  { id: 'perfect_3',     icon: '⭐', name: 'Perfect 3',           desc: 'Solve 3-disk optimally' },
+  { id: 'perfect_any',   icon: '✨', name: 'Perfectionist',       desc: 'Any perfect solve' },
+  { id: 'solve_8',       icon: '👑', name: 'Tower Master',        desc: 'Solve 8-disk puzzle' },
+  { id: 'no_autosave',   icon: '🎯', name: 'No Hints',            desc: 'Solve without auto-solve' },
+  { id: 'all_counts',    icon: '🌟', name: 'Complete Tour',       desc: 'Solve all 3-8 disk counts' },
+  { id: 'speed_demon',   icon: '⚡', name: 'Speed Demon',         desc: 'Solve 3-disk in under 15s' },
+  { id: 'ten_games',     icon: '🎮', name: 'Dedicated',           desc: 'Play 10 games' },
+];
+
+function checkAchievements(isPerfect, usedAutoSolve) {
+  const newOnes = [];
+  const a = profile.achievements;
+
+  if (!a.first_solve && profile.totalGames >= 1) { a.first_solve = true; newOnes.push('first_solve'); }
+  if (!a.perfect_any && isPerfect) { a.perfect_any = true; newOnes.push('perfect_any'); }
+  if (!a.perfect_3 && isPerfect && numDisks === 3) { a.perfect_3 = true; newOnes.push('perfect_3'); }
+  if (!a.solve_8 && numDisks === 8) { a.solve_8 = true; newOnes.push('solve_8'); }
+  if (!a.no_autosave && !usedAutoSolve && profile.totalGames >= 1) { a.no_autosave = true; newOnes.push('no_autosave'); }
+  if (!a.speed_demon && numDisks === 3 && elapsedSeconds < 15 && elapsedSeconds > 0) { a.speed_demon = true; newOnes.push('speed_demon'); }
+  if (!a.ten_games && profile.totalGames >= 10) { a.ten_games = true; newOnes.push('ten_games'); }
+  // all counts: check if all disk counts 3-8 have been solved
+  if (!a.all_counts) {
+    const d = profile.perDisk;
+    const allSolved = [3,4,5,6,7,8].every(n => d[n] && d[n].solves > 0);
+    if (allSolved) { a.all_counts = true; newOnes.push('all_counts'); }
+  }
+
+  return newOnes;
+}
+
+// ============================================================
+// TOAST NOTIFICATIONS
+// ============================================================
+function showToast(msg, type = '') {
+  const container = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (type ? ' ' + type : '');
+  t.textContent = msg;
+  container.appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 2800);
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const DISK_COLORS = [
+  '#E74C3C','#E67E22','#F1C40F','#2ECC71','#3498DB','#9B59B6','#1ABC9C','#E91E63'
+];
+
+let numDisks = 3;
+let pegs = [[], [], []];
+let moveCount = 0;
+let selectedPeg = -1;
+let gameWon = false;
+let timerInterval = null;
+let startTime = null;
+let elapsedSeconds = 0;
+let solving = false;
+let solveQueue = [];
+let solveTimer = null;
+let solveTotalSteps = 0;
+let solveStepsDone = 0;
+let tutorialStep = 0;
+let firstMoveMade = false;
+let paused = false;
+let usedAutoSolve = false;
+let gsPuzzleId = '';   // GameShell puzzle id for the current board (refills hints)
+
+// ── GameShell difficulty bridge ───────────────────────────────────────────
+// GameShell exposes easy/normal/hard; this game's difficulty IS the disk count
+// (3–8, default 3). Per spec: easy = 3 disks, normal = current default (3),
+// hard = +2 (5). 'normal' therefore reproduces the unchanged default board.
+//   GameShell easy   -> 3 disks
+//   GameShell normal -> 3 disks   (CURRENT DEFAULT, unchanged)
+//   GameShell hard   -> 5 disks
+const GS_TO_DISKS = { easy: 3, normal: 3, hard: 5 };
+// Higher-is-better score baseline (per task spec).
+const GS_SCORE_BASE = 1000;
+// Guard against difficulty bridge feedback loops.
+let gsSyncingDifficulty = false;
+// Map an arbitrary disk count back onto the nearest GameShell tier so scores
+// group sensibly. 3 disks honours the player's current easy/normal choice
+// (both mean 3 disks); 4 → normal; 5+ → hard.
+function gsDiffForDisks(n) {
+  if (n <= 3) {
+    var cur = (window.GameShell && GameShell.getDifficulty) ? GameShell.getDifficulty() : 'normal';
+    return cur === 'easy' ? 'easy' : 'normal';
+  }
+  if (n === 4) return 'normal';
+  return 'hard';
+}
+
+// Disk dimensions computed dynamically
+let diskHeightPx = 28;
+let diskMinWidthPct = 15;
+let diskMaxWidthPct = 85;
+
+// Reduced motion check
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ============================================================
+// PER-DISK BEST & PROFILE STATS
+// ============================================================
+function getBestMoves(n) {
+  const d = profile.perDisk[n];
+  return (d && d.bestMoves != null) ? d.bestMoves : null;
+}
+function getBestTime(n) {
+  const d = profile.perDisk[n];
+  return (d && d.bestTime != null) ? d.bestTime : null;
+}
+function saveBestMoves(n, v) {
+  if (!profile.perDisk[n]) profile.perDisk[n] = {};
+  profile.perDisk[n].bestMoves = v;
+  saveProfile(profile);
+}
+function saveBestTime(n, v) {
+  if (!profile.perDisk[n]) profile.perDisk[n] = {};
+  profile.perDisk[n].bestTime = v;
+  saveProfile(profile);
+}
+
+// ============================================================
+// IN-PROGRESS SAVE / RESUME
+// ============================================================
+function saveProgress() {
+  if (!settings.autoSave || gameWon || solving || moveCount === 0) return;
+  lsSet('progress', {
+    numDisks,
+    pegs: pegs.map(p => [...p]),
+    moveCount,
+    elapsedSeconds,
+    usedAutoSolve,
+    savedAt: Date.now()
+  });
+}
+function clearProgress() { lsDel('progress'); }
+
+function checkResume() {
+  const p = lsGet('progress');
+  if (!p || p.numDisks == null || p.moveCount === 0) return;
+  // Only offer if same or compatible
+  const banner = document.getElementById('resume-banner');
+  document.getElementById('resume-text').textContent =
+    `Resume ${p.numDisks}-disk puzzle? (${p.moveCount} moves, ${formatTime(p.elapsedSeconds)})`;
+  banner.classList.add('show');
+  document.getElementById('resume-game-btn').onclick = () => {
+    banner.classList.remove('show');
+    loadProgress(p);
+  };
+  document.getElementById('resume-discard-btn').onclick = () => {
+    banner.classList.remove('show');
+    clearProgress();
+  };
+}
+
+function loadProgress(p) {
+  stopConfetti();
+  stopAutoSolve();
+  document.getElementById('win-overlay').classList.remove('show');
+  numDisks = p.numDisks;
+  document.querySelectorAll('.disk-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.n) === numDisks);
+  });
+  pegs = p.pegs.map(arr => [...arr]);
+  moveCount = p.moveCount;
+  elapsedSeconds = p.elapsedSeconds;
+  usedAutoSolve = p.usedAutoSolve || false;
+  gameWon = false;
+  selectedPeg = -1;
+  firstMoveMade = true;
+  startTimer();
+  updateHUD();
+  renderPegs();
+  showToast('Game resumed!');
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+function getDiskWidthPct(size) {
+  const frac = (size - 1) / Math.max(numDisks - 1, 1);
+  return diskMinWidthPct + frac * (diskMaxWidthPct - diskMinWidthPct);
+}
+function getDiskColor(size) {
+  return DISK_COLORS[(numDisks - size) % DISK_COLORS.length];
+}
+
+function computeDiskHeight() {
+  const gameArea = document.getElementById('game-area');
+  const availH = Math.min(window.innerHeight * 0.5, gameArea.offsetWidth * 0.7);
+  diskHeightPx = Math.max(18, Math.min(38, Math.floor((availH - 40) / (numDisks + 1))));
+}
+
+function getPegHeight() {
+  return diskHeightPx * (numDisks + 0.5) + 10;
+}
+
+function renderPegs(animPeg, animType) {
+  computeDiskHeight();
+  const pegH = getPegHeight();
+  const container = document.getElementById('pegs-container');
+  container.style.alignItems = 'flex-end';
+
+  for (let pi = 0; pi < 3; pi++) {
+    let wrapper = document.getElementById(`peg-${pi}`);
+    if (!wrapper) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'peg-wrapper';
+      wrapper.id = `peg-${pi}`;
+      wrapper.setAttribute('role', 'button');
+      wrapper.setAttribute('tabindex', '0');
+      wrapper.setAttribute('aria-label', `Peg ${['Source','Spare','Target'][pi]}`);
+      wrapper.innerHTML = `
+        <div class="peg-label">${['Source','Spare','Target'][pi]}</div>
+        <div class="peg-disks" id="pdisks-${pi}"></div>
+        <div class="peg-post" id="ppost-${pi}"></div>
+        <div class="peg-base" id="pbase-${pi}"></div>
+      `;
+      container.appendChild(wrapper);
+      wrapper.addEventListener('click', (e) => onPegClick(pi, e));
+      wrapper.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') onPegClick(pi, e); });
+      wrapper.addEventListener('touchend', (e) => { e.preventDefault(); onPegClick(pi, e); });
+    }
+    document.getElementById(`ppost-${pi}`).style.height = pegH + 'px';
+    wrapper.classList.toggle('selected', selectedPeg === pi);
+  }
+
+  for (let pi = 0; pi < 3; pi++) {
+    const disksEl = document.getElementById(`pdisks-${pi}`);
+    const pegStack = pegs[pi];
+    disksEl.innerHTML = '';
+    disksEl.style.height = pegH + 'px';
+    disksEl.style.position = 'relative';
+    disksEl.style.width = '100%';
+
+    pegStack.forEach((diskSize, stackIdx) => {
+      const diskEl = document.createElement('div');
+      diskEl.className = 'disk';
+      diskEl.dataset.size = diskSize;
+      diskEl.dataset.peg = pi;
+      const w = getDiskWidthPct(diskSize);
+      const color = getDiskColor(diskSize);
+      diskEl.style.width = w + '%';
+      diskEl.style.height = diskHeightPx + 'px';
+      diskEl.style.background = color;
+      diskEl.style.boxShadow = `0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2)`;
+      diskEl.textContent = diskSize;
+      diskEl.style.position = 'absolute';
+      diskEl.style.bottom = (stackIdx * (diskHeightPx + 2)) + 'px';
+      diskEl.style.left = '50%';
+      diskEl.style.transform = 'translateX(-50%)';
+
+      const isTop = stackIdx === pegStack.length - 1;
+      if (isTop && selectedPeg === pi) diskEl.classList.add('lifted');
+
+      // Tween animation for placed disk
+      if (!reducedMotion && isTop && animPeg === pi && animType === 'place') {
+        diskEl.classList.add('placing');
+      }
+
+      if (isTop && !gameWon && !solving) {
+        diskEl.addEventListener('mousedown', (e) => { e.stopPropagation(); startDrag(pi, diskEl, e.clientX, e.clientY, 'mouse'); });
+        diskEl.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); const t = e.touches[0]; startDrag(pi, diskEl, t.clientX, t.clientY, 'touch'); }, { passive: false });
+      }
+
+      disksEl.appendChild(diskEl);
+    });
+  }
+}
+
+// ============================================================
+// DRAG & DROP
+// ============================================================
+let drag = {
+  active: false, sourcePeg: -1, diskSize: 0,
+  diskEl: null, ghostEl: null, type: null,
+};
+
+function startDrag(pegIdx, diskEl, cx, cy, type) {
+  if (gameWon || solving || paused) return;
+  if (pegs[pegIdx].length === 0) return;
+  const topSize = pegs[pegIdx][pegs[pegIdx].length - 1];
+  drag.active = true; drag.sourcePeg = pegIdx;
+  drag.diskSize = topSize; drag.type = type;
+  selectedPeg = -1;
+  sfxPickup();
+  startMusic();
+  const ghost = document.getElementById('drag-ghost');
+  const color = getDiskColor(topSize);
+  const w = getDiskWidthPct(topSize);
+  const containerW = document.getElementById('pegs-container').offsetWidth;
+  const pxW = (w / 100) * (containerW / 3);
+  ghost.style.width = Math.max(40, pxW) + 'px';
+  ghost.style.height = diskHeightPx + 'px';
+  ghost.style.background = color;
+  ghost.style.borderRadius = '6px';
+  ghost.style.boxShadow = '0 8px 20px rgba(0,0,0,0.5)';
+  ghost.style.display = 'block';
+  ghost.style.left = cx + 'px';
+  ghost.style.top = cy + 'px';
+  ghost.style.opacity = '0.92';
+  ghost.style.zIndex = 1000;
+  ghost.style.transform = 'translate(-50%, -50%)';
+  diskEl.classList.add('dragging-ghost');
+  drag.diskEl = diskEl;
+  if (type === 'mouse') {
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+  } else {
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onTouchEnd);
+  }
+}
+
+function onDragMove(e) {
+  if (!drag.active) return;
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.left = e.clientX + 'px';
+  ghost.style.top = e.clientY + 'px';
+}
+function onTouchMove(e) {
+  if (!drag.active) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.left = t.clientX + 'px';
+  ghost.style.top = t.clientY + 'px';
+}
+
+function onDragEnd(e) {
+  if (!drag.active) return;
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  endDrag(e.clientX, e.clientY);
+}
+function onTouchEnd(e) {
+  if (!drag.active) return;
+  document.removeEventListener('touchmove', onTouchMove);
+  document.removeEventListener('touchend', onTouchEnd);
+  const t = e.changedTouches[0];
+  endDrag(t.clientX, t.clientY);
+}
+
+function endDrag(cx, cy) {
+  const ghost = document.getElementById('drag-ghost');
+  ghost.style.display = 'none';
+  if (drag.diskEl) { drag.diskEl.classList.remove('dragging-ghost'); }
+  const destPeg = getPegAtPoint(cx, cy);
+  drag.active = false;
+  if (destPeg === -1 || destPeg === drag.sourcePeg) { renderPegs(); return; }
+  tryMove(drag.sourcePeg, destPeg);
+}
+
+function getPegAtPoint(cx, cy) {
+  for (let pi = 0; pi < 3; pi++) {
+    const wrapper = document.getElementById(`peg-${pi}`);
+    if (!wrapper) continue;
+    const rect = wrapper.getBoundingClientRect();
+    if (cx >= rect.left && cx <= rect.right && cy >= rect.top && cy <= rect.bottom) return pi;
+  }
+  return -1;
+}
+
+// ============================================================
+// TAP-TO-SELECT INTERACTION
+// ============================================================
+function onPegClick(pegIdx, e) {
+  if (gameWon || solving || paused) return;
+  if (drag.active) return;
+  startMusic();
+  if (selectedPeg === -1) {
+    if (pegs[pegIdx].length === 0) { showStatus('No disk here!'); return; }
+    selectedPeg = pegIdx;
+    sfxPickup();
+    updateTutorial(1);
+    renderPegs();
+  } else if (selectedPeg === pegIdx) {
+    selectedPeg = -1;
+    renderPegs();
+  } else {
+    tryMove(selectedPeg, pegIdx);
+    selectedPeg = -1;
+  }
+}
+
+// ============================================================
+// MOVE LOGIC
+// ============================================================
+function tryMove(fromPeg, toPeg) {
+  if (fromPeg === toPeg) return;
+  if (pegs[fromPeg].length === 0) {
+    showStatus('No disk on that peg!'); illegalFlash(fromPeg); return;
+  }
+  const movingDisk = pegs[fromPeg][pegs[fromPeg].length - 1];
+  const destTop = pegs[toPeg].length > 0 ? pegs[toPeg][pegs[toPeg].length - 1] : Infinity;
+  if (movingDisk > destTop) {
+    showStatus("Can't place a larger disk on a smaller one!");
+    sfxIllegal(); illegalFlash(toPeg);
+    selectedPeg = -1; renderPegs(); return;
+  }
+
+  pegs[fromPeg].pop();
+  pegs[toPeg].push(movingDisk);
+  moveCount++;
+  firstMoveMade = true;
+  if (moveCount === 1) startTimer();
+
+  sfxPlace();
+  updateHUD();
+  updateTutorial(2);
+  renderPegs(toPeg, 'place');
+  saveProgress();
+  checkWin();
+}
+
+function illegalFlash(pegIdx) {
+  const wrapper = document.getElementById(`peg-${pegIdx}`);
+  if (!wrapper) return;
+  wrapper.classList.add('shake', 'illegal-flash');
+  setTimeout(() => wrapper.classList.remove('shake', 'illegal-flash'), 400);
+}
+
+function checkWin() {
+  if (checkWinSilent()) {
+    gameWon = true;
+    stopTimer();
+    sfxWin();
+    clearProgress();
+    showWin();
+  }
+}
+
+// ============================================================
+// PAUSE
+// ============================================================
+function togglePause() {
+  if (gameWon || !firstMoveMade) return;
+  paused = !paused;
+  document.getElementById('pause-overlay').classList.toggle('show', paused);
+  if (paused) { stopTimer(); }
+  else        { if (firstMoveMade && !gameWon) startTimer(); }
+}
+
+// ============================================================
+// TIMER
+// ============================================================
+function startTimer() {
+  if (timerInterval) return;
+  startTime = Date.now() - elapsedSeconds * 1000;
+  timerInterval = setInterval(() => {
+    elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    document.getElementById('hud-time').textContent = formatTime(elapsedSeconds);
+  }, 500);
+}
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  if (startTime) elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+}
+function resetTimer() {
+  stopTimer(); elapsedSeconds = 0; startTime = null;
+  document.getElementById('hud-time').textContent = '0:00';
+}
+function formatTime(s) {
+  const m = Math.floor(s / 60);
+  const ss = s % 60;
+  return `${m}:${ss.toString().padStart(2,'0')}`;
+}
+
+// Tab blur/focus — auto-pause timer
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (timerInterval && !paused) stopTimer();
+  } else {
+    if (!paused && firstMoveMade && !gameWon) startTimer();
+  }
+});
+
+// ============================================================
+// HUD
+// ============================================================
+function updateHUD() {
+  const opt = (1 << numDisks) - 1;
+  document.getElementById('hud-moves').textContent = moveCount;
+  document.getElementById('hud-optimal').textContent = opt;
+  const bm = getBestMoves(numDisks);
+  const bt = getBestTime(numDisks);
+  document.getElementById('hud-best-moves').textContent = bm !== null ? bm : '—';
+  document.getElementById('hud-best-time').textContent = bt !== null ? formatTime(bt) : '—';
+}
+
+function showStatus(msg) {
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// WIN SCREEN
+// ============================================================
+function showWin() {
+  const opt = (1 << numDisks) - 1;
+  const isPerfect = moveCount === opt;
+  const bm = getBestMoves(numDisks);
+  const bt = getBestTime(numDisks);
+
+  let newBestMoves = false, newBestTime = false;
+  if (bm === null || moveCount < bm) { saveBestMoves(numDisks, moveCount); newBestMoves = true; }
+  if (bt === null || elapsedSeconds < bt) { saveBestTime(numDisks, elapsedSeconds); newBestTime = true; }
+
+  // Update profile stats
+  profile.totalGames++;
+  if (isPerfect) profile.perfectSolves++;
+  profile.totalMoves += moveCount;
+  if (!profile.perDisk[numDisks]) profile.perDisk[numDisks] = {};
+  const pd = profile.perDisk[numDisks];
+  pd.solves = (pd.solves || 0) + 1;
+  if (isPerfect) pd.perfect = (pd.perfect || 0) + 1;
+  pd.totalMoves = (pd.totalMoves || 0) + moveCount;
+  pd.totalTime = (pd.totalTime || 0) + elapsedSeconds;
+  if (pd.bestMoves == null || moveCount < pd.bestMoves) pd.bestMoves = moveCount;
+  if (pd.bestTime == null || elapsedSeconds < pd.bestTime) pd.bestTime = elapsedSeconds;
+  saveProfile(profile);
+
+  // Check achievements
+  const newAchs = checkAchievements(isPerfect, usedAutoSolve);
+  newAchs.forEach(id => {
+    const a = ACHIEVEMENTS.find(x => x.id === id);
+    if (a) { sfxAchiev(); showToast(`${a.icon} Achievement: ${a.name}!`, 'achievement'); }
+  });
+
+  // GameShell: submit a higher-is-better score for *player* solves only
+  // (auto-solve is always optimal and would game the leaderboard).
+  // Score = max(0, 1000 + (optimal - movesUsed)*20): optimal scores 1000,
+  // every extra move costs 20. Reported metric/BASE to QA: 1000.
+  if (!usedAutoSolve && window.GameShell && typeof GameShell.submitScore === 'function') {
+    const gsScore = Math.max(0, GS_SCORE_BASE + (opt - moveCount) * 20);
+    GameShell.submitScore(gsScore, { difficulty: gsDiffForDisks(numDisks) });
+  }
+
+  const titleEl = document.getElementById('win-title');
+  const subEl = document.getElementById('win-subtitle');
+  if (isPerfect) {
+    titleEl.textContent = 'Perfect!'; titleEl.className = 'perfect';
+    subEl.textContent = 'Optimal solution — flawless!';
+  } else if (moveCount <= opt * 1.5) {
+    titleEl.textContent = 'Excellent!'; titleEl.className = 'good';
+    subEl.textContent = 'Very close to optimal. Try to beat ' + opt + '!';
+  } else {
+    titleEl.textContent = 'Solved!'; titleEl.className = 'ok';
+    subEl.textContent = `Optimal is ${opt} moves. Can you do better?`;
+  }
+
+  document.getElementById('ws-moves').textContent = moveCount;
+  document.getElementById('ws-moves').className = 'ws-val' + (newBestMoves ? ' new-best' : '');
+  document.getElementById('ws-optimal').textContent = opt;
+  document.getElementById('ws-time').textContent = formatTime(elapsedSeconds);
+  document.getElementById('ws-time').className = 'ws-val' + (newBestTime ? ' new-best' : '');
+  const currentBestTime = newBestTime ? elapsedSeconds : bt;
+  document.getElementById('ws-best-time').textContent = currentBestTime !== null ? formatTime(currentBestTime) : '—';
+
+  // Show new achievements in win box
+  const waEl = document.getElementById('win-achievements');
+  if (newAchs.length > 0) {
+    waEl.innerHTML = newAchs.map(id => {
+      const a = ACHIEVEMENTS.find(x => x.id === id);
+      return `<span style="display:inline-block;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;border-radius:8px;padding:4px 10px;margin:2px;font-size:0.8rem;color:#f1c40f;">${a.icon} ${a.name}</span>`;
+    }).join('');
+  } else {
+    waEl.innerHTML = '';
+  }
+
+  document.getElementById('win-overlay').classList.add('show');
+  launchConfetti();
+  updateHUD();
+}
+
+// ============================================================
+// CONFETTI
+// ============================================================
+let confettiParticles = [];
+let confettiRAF = null;
+function launchConfetti() {
+  if (reducedMotion) return;
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  confettiParticles = [];
+  const colors = DISK_COLORS;
+  for (let i = 0; i < 120; i++) {
+    confettiParticles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height * 0.3 - canvas.height * 0.1,
+      vx: (Math.random() - 0.5) * 4,
+      vy: Math.random() * 3 + 2,
+      w: Math.random() * 10 + 6,
+      h: Math.random() * 6 + 3,
+      rot: Math.random() * 360,
+      rotV: (Math.random() - 0.5) * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: 1,
+    });
+  }
+  if (confettiRAF) cancelAnimationFrame(confettiRAF);
+  drawConfetti();
+}
+function drawConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  confettiParticles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot * Math.PI / 180);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    ctx.restore();
+    p.x += p.vx; p.y += p.vy;
+    p.rot += p.rotV; p.vy += 0.06;
+    if (p.y > canvas.height * 0.8) p.alpha -= 0.02;
+  });
+  confettiParticles = confettiParticles.filter(p => p.alpha > 0);
+  if (confettiParticles.length > 0) confettiRAF = requestAnimationFrame(drawConfetti);
+}
+function stopConfetti() {
+  if (confettiRAF) cancelAnimationFrame(confettiRAF);
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  confettiParticles = [];
+}
+
+// ============================================================
+// TUTORIAL
+// ============================================================
+function updateTutorial(step) {
+  if (lsGet('tutorial_done')) return;
+  const el = document.getElementById('tutorial');
+  if (step === 1 && tutorialStep === 0) {
+    tutorialStep = 1;
+    el.textContent = 'Now click another peg to place the disk there.';
+  } else if (step === 2 && tutorialStep <= 1 && moveCount >= 3) {
+    tutorialStep = 2;
+    el.textContent = 'Remember: never place a larger disk on a smaller one. Good luck!';
+    setTimeout(() => {
+      el.classList.add('hidden');
+      lsSet('tutorial_done', true);
+    }, 3000);
+  }
+}
+
+// ============================================================
+// NEW GAME
+// ============================================================
+function newGame(keepDisks) {
+  stopConfetti(); stopAutoSolve();
+  document.getElementById('win-overlay').classList.remove('show');
+  if (paused) { paused = false; document.getElementById('pause-overlay').classList.remove('show'); }
+  gameWon = false; moveCount = 0; selectedPeg = -1;
+  firstMoveMade = false; usedAutoSolve = false;
+  resetTimer();
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('solve-btn').textContent = '▶ Auto-Solve';
+  document.getElementById('auto-solve-info').textContent = '';
+  pegs = [[], [], []];
+  for (let s = numDisks; s >= 1; s--) pegs[0].push(s);
+
+  const tutEl = document.getElementById('tutorial');
+  if (!lsGet('tutorial_done')) {
+    tutEl.classList.remove('hidden');
+    tutEl.textContent = 'Click a peg to pick up its top disk, then click another peg to place it there.';
+    tutorialStep = 0;
+  } else {
+    tutEl.classList.add('hidden');
+  }
+
+  clearProgress();
+  updateHUD();
+  renderPegs();
+
+  // GameShell: a fresh board mints a new puzzle id, which refills hints.
+  gsPuzzleId = numDisks + ':' + Date.now() + ':' + Math.random().toString(36).slice(2, 8);
+  if (window.GameShell && typeof GameShell.newGame === 'function') {
+    GameShell.newGame(gsPuzzleId);
+  }
+}
+
+function setNumDisks(n) {
+  numDisks = n;
+  document.querySelectorAll('.disk-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.n) === n);
+  });
+  newGame(true);
+
+  // Bridge the disk-count choice into GameShell (no loop-back rebuild).
+  if (!gsSyncingDifficulty && window.GameShell && typeof GameShell.setDifficulty === 'function') {
+    const gsDiff = gsDiffForDisks(n);
+    if (gsDiff && GameShell.getDifficulty && GameShell.getDifficulty() !== gsDiff) {
+      gsSyncingDifficulty = true;
+      try { GameShell.setDifficulty(gsDiff); } finally { gsSyncingDifficulty = false; }
+    }
+  }
+}
+
+// ============================================================
+// AUTO-SOLVE
+// ============================================================
+function stopAutoSolve() {
+  solving = false;
+  if (solveTimer) { clearTimeout(solveTimer); solveTimer = null; }
+  solveQueue = []; solveTotalSteps = 0; solveStepsDone = 0;
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('solve-btn').textContent = '▶ Auto-Solve';
+  document.getElementById('auto-solve-info').textContent = '';
+}
+
+function autoSolve() {
+  if (solving) { stopAutoSolve(); newGame(true); return; }
+  if (gameWon) return;
+  newGame(true);
+  solving = true; usedAutoSolve = true;
+  profile.autoSolveUsed++;
+  saveProfile(profile);
+  solveQueue = [];
+  document.getElementById('solve-btn').disabled = false;
+  document.getElementById('solve-btn').textContent = '⏹ Stop';
+
+  function hanoi(n, from, to, via) {
+    if (n === 0) return;
+    hanoi(n-1, from, via, to);
+    solveQueue.push([from, to]);
+    hanoi(n-1, via, to, from);
+  }
+  hanoi(numDisks, 0, 2, 1);
+  solveTotalSteps = solveQueue.length;
+  solveStepsDone = 0;
+  startTimer();
+
+  function step() {
+    if (!solving || solveQueue.length === 0) {
+      solving = false;
+      document.getElementById('solve-btn').disabled = false;
+      document.getElementById('solve-btn').textContent = '▶ Auto-Solve';
+      document.getElementById('auto-solve-info').textContent = '';
+      return;
+    }
+    const [from, to] = solveQueue.shift();
+    const movingDisk = pegs[from][pegs[from].length - 1];
+    pegs[from].pop(); pegs[to].push(movingDisk);
+    moveCount++; solveStepsDone++;
+    sfxPlace();
+    updateHUD();
+    document.getElementById('auto-solve-info').textContent =
+      `Auto-solve: Step ${solveStepsDone} / ${solveTotalSteps}`;
+    renderPegs(to, 'place');
+    if (checkWinSilent()) {
+      solving = false; gameWon = true;
+      stopTimer(); sfxWin();
+      document.getElementById('solve-btn').disabled = false;
+      document.getElementById('solve-btn').textContent = '▶ Auto-Solve';
+      document.getElementById('auto-solve-info').textContent = '';
+      clearProgress();
+      showWin();
+      return;
+    }
+    solveTimer = setTimeout(step, getSolveDelay());
+  }
+  solveTimer = setTimeout(step, getSolveDelay());
+}
+
+function getSolveDelay() {
+  if (numDisks <= 4) return 500;
+  if (numDisks <= 5) return 350;
+  if (numDisks <= 6) return 220;
+  if (numDisks <= 7) return 130;
+  return 80;
+}
+
+function checkWinSilent() {
+  if (pegs[2].length !== numDisks) return false;
+  for (let i = 1; i < pegs[2].length; i++) { if (pegs[2][i] > pegs[2][i-1]) return false; }
+  return true;
+}
+
+// ============================================================
+// GAMESHELL REAL HINT — next optimal move from the CURRENT state
+// ============================================================
+// Computes the optimal next move that drives the *current* (possibly
+// non-optimal) configuration toward the goal of stacking every disk on the
+// Target peg (index 2), then returns a human-readable instruction string.
+const PEG_LETTERS = ['A', 'B', 'C'];           // peg 0/1/2 → A/B/C
+const PEG_NAMES   = ['Source', 'Spare', 'Target'];
+
+// Build loc[size] = peg index for each disk from the live pegs array.
+function diskLocations() {
+  const loc = {};
+  for (let pi = 0; pi < 3; pi++) {
+    for (const size of pegs[pi]) loc[size] = pi;
+  }
+  return loc;
+}
+// Are disks 1..n all currently on peg `target`?
+function allOnPeg(n, target, loc) {
+  for (let d = 1; d <= n; d++) { if (loc[d] !== target) return false; }
+  return true;
+}
+// Optimal next move toward putting disks 1..n on `target`. Returns [from,to] or null.
+function optimalNextMove(n, target, loc) {
+  if (n === 0) return null;
+  if (loc[n] === target) return optimalNextMove(n - 1, target, loc);
+  const other = 3 - loc[n] - target;          // the third peg (0+1+2 = 3)
+  if (allOnPeg(n - 1, other, loc)) return [loc[n], target];
+  return optimalNextMove(n - 1, other, loc);
+}
+
+// onHint provider: returns a STRING describing the next optimal move.
+function gsHanoiHint() {
+  if (solving) return 'Auto-solve is running — stop it to play and get hints.';
+  if (paused)  return 'Resume the game to get a hint.';
+  if (gameWon || checkWinSilent()) return 'Solved! Start a new game for a fresh puzzle.';
+  const loc = diskLocations();
+  const mv = optimalNextMove(numDisks, 2, loc);
+  if (!mv) return 'Solved! Start a new game for a fresh puzzle.';
+  const [from, to] = mv;
+  const movingDisk = pegs[from][pegs[from].length - 1];
+  return `Move disk ${movingDisk} from peg ${PEG_LETTERS[from]} (${PEG_NAMES[from]}) ` +
+         `to peg ${PEG_LETTERS[to]} (${PEG_NAMES[to]}).`;
+}
+
+// ============================================================
+// PROFILE MODAL
+// ============================================================
+function openProfile() {
+  const p = profile;
+  document.getElementById('profile-name-input').value = p.name;
+  document.getElementById('profile-id').textContent = p.id;
+  document.getElementById('stat-games').textContent = p.totalGames;
+  document.getElementById('stat-perfect').textContent = p.perfectSolves;
+  document.getElementById('stat-total-moves').textContent = p.totalMoves;
+  document.getElementById('stat-autosolve').textContent = p.autoSolveUsed;
+
+  const grid = document.getElementById('achiev-grid');
+  grid.innerHTML = '';
+  ACHIEVEMENTS.forEach(a => {
+    const unlocked = !!p.achievements[a.id];
+    const el = document.createElement('div');
+    el.className = 'achiev-badge' + (unlocked ? ' unlocked' : '');
+    el.innerHTML = `<span class="badge-icon">${a.icon}</span>${a.name}<br><span style="font-size:0.68rem;opacity:0.7">${a.desc}</span>`;
+    grid.appendChild(el);
+  });
+
+  document.getElementById('profile-modal').classList.add('show');
+}
+
+// ============================================================
+// STATS MODAL
+// ============================================================
+function openStats() {
+  const tbody = document.getElementById('stats-tbody');
+  tbody.innerHTML = '';
+  [3,4,5,6,7,8].forEach(n => {
+    const d = profile.perDisk[n] || {};
+    const solves = d.solves || 0;
+    const perfect = d.perfect || 0;
+    const bm = d.bestMoves != null ? d.bestMoves : '—';
+    const bt = d.bestTime != null ? formatTime(d.bestTime) : '—';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${n}</td><td>${solves}</td><td class="${perfect > 0 ? 'gold':''}">${perfect}</td><td>${bm}</td><td>${bt}</td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('stats-modal').classList.add('show');
+}
+
+// ============================================================
+// SETTINGS MODAL
+// ============================================================
+function openSettings() {
+  document.getElementById('set-mute').checked = settings.muted;
+  document.getElementById('set-sfx-vol').value = settings.sfxVol;
+  document.getElementById('set-music-vol').value = settings.musicVol;
+  document.getElementById('set-autosave').checked = settings.autoSave;
+  document.getElementById('settings-modal').classList.add('show');
+}
+
+function syncSettingsFromUI() {
+  settings.muted = document.getElementById('set-mute').checked;
+  settings.sfxVol = parseInt(document.getElementById('set-sfx-vol').value);
+  settings.musicVol = parseInt(document.getElementById('set-music-vol').value);
+  settings.autoSave = document.getElementById('set-autosave').checked;
+  muted = settings.muted;
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  if (muted) stopMusic();
+  saveSettings();
+}
+
+// ============================================================
+// SHARE
+// ============================================================
+function shareResult() {
+  const opt = (1 << numDisks) - 1;
+  const text = `Tower of Hanoi: Solved ${numDisks}-disk puzzle in ${moveCount} moves (optimal: ${opt}) in ${formatTime(elapsedSeconds)}! #TowerOfHanoi`;
+  if (navigator.share) {
+    navigator.share({ title: 'Tower of Hanoi', text }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(text).then(() => showToast('Result copied to clipboard!')).catch(() => {});
+  }
+}
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+document.getElementById('new-btn').addEventListener('click', () => newGame(true));
+document.getElementById('solve-btn').addEventListener('click', autoSolve);
+document.getElementById('win-replay').addEventListener('click', () => {
+  stopConfetti(); document.getElementById('win-overlay').classList.remove('show'); newGame(true);
+});
+document.getElementById('win-more').addEventListener('click', () => {
+  stopConfetti(); document.getElementById('win-overlay').classList.remove('show');
+  const next = Math.min(numDisks + 1, 8); setNumDisks(next);
+});
+document.getElementById('win-share').addEventListener('click', shareResult);
+document.getElementById('disk-selector').addEventListener('click', (e) => {
+  const btn = e.target.closest('.disk-btn');
+  if (btn) setNumDisks(parseInt(btn.dataset.n));
+});
+document.getElementById('mute-btn').addEventListener('click', () => {
+  muted = !muted;
+  settings.muted = muted;
+  saveSettings();
+  document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+  if (muted) stopMusic();
+});
+document.getElementById('pause-btn').addEventListener('click', togglePause);
+document.getElementById('resume-btn').addEventListener('click', togglePause);
+document.getElementById('profile-btn').addEventListener('click', openProfile);
+document.getElementById('stats-btn').addEventListener('click', openStats);
+document.getElementById('settings-btn').addEventListener('click', openSettings);
+
+// Profile modal
+document.getElementById('profile-close').addEventListener('click', () => {
+  document.getElementById('profile-modal').classList.remove('show');
+});
+document.getElementById('profile-name-input').addEventListener('input', (e) => {
+  profile.name = e.target.value.trim() || profile.name;
+  saveProfile(profile);
+});
+document.getElementById('reset-profile-btn').addEventListener('click', () => {
+  if (confirm('Reset ALL data — profile, bests, achievements? This cannot be undone.')) {
+    try {
+      const keys = Object.keys(localStorage).filter(k => k.startsWith(NS));
+      keys.forEach(k => localStorage.removeItem(k));
+    } catch(e) {}
+    profile = loadProfile();
+    settings = loadSettings();
+    muted = settings.muted;
+    document.getElementById('profile-modal').classList.remove('show');
+    showToast('All data reset.');
+    newGame(true);
+  }
+});
+
+// Stats modal
+document.getElementById('stats-close').addEventListener('click', () => {
+  document.getElementById('stats-modal').classList.remove('show');
+});
+
+// Settings modal
+document.getElementById('settings-close').addEventListener('click', () => {
+  syncSettingsFromUI();
+  document.getElementById('settings-modal').classList.remove('show');
+});
+['set-mute','set-sfx-vol','set-music-vol','set-autosave'].forEach(id => {
+  document.getElementById(id).addEventListener('change', syncSettingsFromUI);
+});
+
+// Close modals on backdrop click
+document.querySelectorAll('.modal-overlay').forEach(mo => {
+  mo.addEventListener('click', (e) => {
+    if (e.target === mo) {
+      syncSettingsFromUI();
+      mo.classList.remove('show');
+    }
+  });
+});
+
+// Keyboard support
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'p' || e.key === 'P') { togglePause(); return; }
+  if (paused) return;
+  if (gameWon && !solving) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      stopConfetti(); document.getElementById('win-overlay').classList.remove('show'); newGame(true);
+    }
+    return;
+  }
+  if (solving) {
+    if (e.key === 'Escape') { stopAutoSolve(); newGame(true); }
+    return;
+  }
+  if (e.key === '1') onPegClick(0, e);
+  else if (e.key === '2') onPegClick(1, e);
+  else if (e.key === '3') onPegClick(2, e);
+  else if (e.key === 'Escape') { selectedPeg = -1; renderPegs(); }
+});
+
+// Handle resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => renderPegs(), 120);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+// Apply saved mute state
+document.getElementById('mute-btn').textContent = muted ? '🔇' : '🔊';
+document.getElementById('pegs-container').innerHTML = '';
+
+// ── GameShell wiring ────────────────────────────────────────────────────
+// Register the real-hint provider (next optimal move).
+if (window.GameShell && typeof GameShell.onHint === 'function') {
+  GameShell.onHint(gsHanoiHint);
+}
+// React to difficulty changes coming FROM GameShell's settings panel.
+if (window.GameShell && typeof GameShell.onDifficulty === 'function') {
+  GameShell.onDifficulty(function (gsDiff) {
+    if (gsSyncingDifficulty) return;               // change originated in-game
+    const n = GS_TO_DISKS[gsDiff];
+    if (!n || n === numDisks) return;
+    gsSyncingDifficulty = true;
+    try { setNumDisks(n); } finally { gsSyncingDifficulty = false; }
+  });
+}
+// Choose the starting disk count from GameShell. 'normal' maps to 3 disks
+// (the unchanged default), so the default first-load board is preserved.
+if (window.GameShell && typeof GameShell.getDifficulty === 'function') {
+  const startN = GS_TO_DISKS[GameShell.getDifficulty()];
+  if (startN) numDisks = startN;
+}
+document.querySelectorAll('.disk-btn').forEach(b => {
+  b.classList.toggle('active', parseInt(b.dataset.n) === numDisks);
+});
+
+newGame(true);
+// Check for resume after short delay (let DOM settle)
+setTimeout(checkResume, 200);
+</script>
+</body>
+</html>

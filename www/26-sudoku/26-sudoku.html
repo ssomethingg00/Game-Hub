@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Sudoku</title>
+<style>
+  :root {
+    --bg: #f4f4ef;
+    --surface: #ffffff;
+    --border-thin: #c8c8c0;
+    --border-box: #2a2a3a;
+    --given-color: #1a1a2e;
+    --player-color: #2563eb;
+    --error-color: #dc2626;
+    --note-color: #6b7280;
+    --selected-bg: #dbeafe;
+    --peer-bg: #f0f4ff;
+    --same-digit-bg: #bfdbfe;
+    --conflict-bg: #fee2e2;
+    --win-overlay: rgba(0,0,0,0.55);
+    --pad-btn-bg: #ffffff;
+    --pad-btn-hover: #e8edf8;
+    --pad-btn-active: #c7d7f5;
+    --pad-btn-border: #d0d5e0;
+    --erase-btn-bg: #fef3c7;
+    --notes-on-bg: #d1fae5;
+    --hint-btn-bg: #fef9c3;
+    --check-btn-bg: #dcfce7;
+    --text-muted: #6b7280;
+    --text-main: #1a1a2e;
+    --hud-bg: #ffffff;
+    --difficulty-easy: #16a34a;
+    --difficulty-medium: #d97706;
+    --difficulty-hard: #dc2626;
+    --button-primary: #2563eb;
+    --button-primary-text: #ffffff;
+    --transition: 0.12s ease;
+    --modal-bg: rgba(0,0,0,0.6);
+  }
+  [data-dark] {
+    --bg: #12121e;
+    --surface: #1e1e30;
+    --border-thin: #3a3a5a;
+    --border-box: #8888bb;
+    --given-color: #e2e8f0;
+    --player-color: #60a5fa;
+    --error-color: #f87171;
+    --note-color: #9ca3af;
+    --selected-bg: #1e3a5f;
+    --peer-bg: #1a1a2e;
+    --same-digit-bg: #1e3a6e;
+    --conflict-bg: #3f1212;
+    --pad-btn-bg: #1e1e30;
+    --pad-btn-hover: #2a2a42;
+    --pad-btn-active: #363658;
+    --pad-btn-border: #3a3a5a;
+    --erase-btn-bg: #2a2214;
+    --notes-on-bg: #0d2a1a;
+    --hint-btn-bg: #2a2412;
+    --check-btn-bg: #0d2a14;
+    --text-muted: #9ca3af;
+    --text-main: #e2e8f0;
+    --hud-bg: #1e1e30;
+    --button-primary: #3b82f6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 8px 8px 16px;
+    transition: background var(--transition), color var(--transition);
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  #header {
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  #header h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-main);
+    cursor: pointer;
+  }
+  #header-btns { display: flex; gap: 6px; align-items: center; }
+  .icon-btn {
+    background: var(--surface);
+    border: 1px solid var(--pad-btn-border);
+    border-radius: 8px;
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 1rem;
+    transition: background var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .icon-btn:hover { background: var(--pad-btn-hover); }
+  .icon-btn:active { background: var(--pad-btn-active); transform: scale(0.93); }
+
+  /* ── DIFFICULTY SELECTOR ─────────────────────────────── */
+  #diff-row {
+    display: flex; gap: 6px; margin-bottom: 8px;
+    width: 100%; max-width: 420px;
+  }
+  .diff-btn {
+    flex: 1; padding: 7px 4px; border: 2px solid var(--pad-btn-border);
+    border-radius: 10px; background: var(--surface);
+    font-size: 0.8rem; font-weight: 700; cursor: pointer;
+    transition: all var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    color: var(--text-main);
+  }
+  .diff-btn:hover { transform: translateY(-1px); border-color: var(--button-primary); }
+  .diff-btn.active[data-diff="easy"]   { background: #dcfce7; border-color: var(--difficulty-easy); color: var(--difficulty-easy); }
+  .diff-btn.active[data-diff="medium"] { background: #fef3c7; border-color: var(--difficulty-medium); color: var(--difficulty-medium); }
+  .diff-btn.active[data-diff="hard"]   { background: #fee2e2; border-color: var(--difficulty-hard); color: var(--difficulty-hard); }
+  [data-dark] .diff-btn.active[data-diff="easy"]   { background: #0d2a1a; }
+  [data-dark] .diff-btn.active[data-diff="medium"] { background: #2a1f00; }
+  [data-dark] .diff-btn.active[data-diff="hard"]   { background: #2a0a0a; }
+
+  /* ── HUD ─────────────────────────────────────────────── */
+  #hud {
+    width: 100%; max-width: 420px;
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--hud-bg); border: 1px solid var(--pad-btn-border);
+    border-radius: 12px; padding: 8px 14px; margin-bottom: 8px;
+    transition: background var(--transition);
+  }
+  .hud-block { display: flex; flex-direction: column; align-items: center; }
+  .hud-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .hud-value { font-size: 1.1rem; font-weight: 700; color: var(--text-main); font-variant-numeric: tabular-nums; }
+  #mistake-val { color: var(--error-color); }
+
+  /* ── GRID ────────────────────────────────────────────── */
+  #grid-wrap {
+    width: 100%; max-width: 420px; aspect-ratio: 1/1;
+    margin-bottom: 10px; position: relative;
+  }
+  #grid {
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    width: 100%; height: 100%;
+    border: 3px solid var(--border-box);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--surface);
+    transition: background var(--transition);
+  }
+
+  /* Pause overlay over grid */
+  #pause-veil {
+    display: none; position: absolute; inset: 0;
+    background: var(--surface); z-index: 10;
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 10px;
+    border-radius: 4px; border: 3px solid var(--border-box);
+  }
+  #pause-veil.show { display: flex; }
+  #pause-veil .pause-text { font-size: 1.6rem; font-weight: 800; color: var(--text-main); }
+  #pause-veil .pause-sub  { font-size: 0.85rem; color: var(--text-muted); }
+
+  .cell {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+    border-right: 1px solid var(--border-thin);
+    border-bottom: 1px solid var(--border-thin);
+    cursor: pointer;
+    font-size: clamp(0.9rem, 4.5vw, 1.55rem);
+    font-weight: 700;
+    color: var(--given-color);
+    background: var(--surface);
+    transition: background var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    overflow: hidden;
+  }
+  .cell:nth-child(3n):not(:nth-child(9n)) { border-right: 2.5px solid var(--border-box); }
+  .cell:nth-child(n+19):nth-child(-n+27) { border-bottom: 2.5px solid var(--border-box); }
+  .cell:nth-child(n+46):nth-child(-n+54) { border-bottom: 2.5px solid var(--border-box); }
+  .cell.row3 { border-bottom: 2.5px solid var(--border-box); }
+  .cell.row6 { border-bottom: 2.5px solid var(--border-box); }
+  .cell.col3 { border-right: 2.5px solid var(--border-box); }
+  .cell.col6 { border-right: 2.5px solid var(--border-box); }
+  .cell.row9 { border-bottom: none; }
+  .cell.col9 { border-right: none; }
+
+  .cell.is-given { color: var(--given-color); }
+  .cell.is-player { color: var(--player-color); }
+  .cell.is-error  { color: var(--error-color) !important; }
+
+  .cell.hl-peer     { background: var(--peer-bg); }
+  .cell.hl-same     { background: var(--same-digit-bg); }
+  .cell.hl-selected { background: var(--selected-bg); }
+  .cell.hl-conflict { background: var(--conflict-bg); }
+
+  @keyframes pop   { 0%{transform:scale(1.2)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-5px)} 40%{transform:translateX(5px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+  @media (prefers-reduced-motion: reduce) {
+    .anim-pop, .anim-shake { animation: none !important; }
+  }
+  .anim-pop   { animation: pop 0.15s ease-out; }
+  .anim-shake { animation: shake 0.25s ease-in-out; }
+
+  .notes-grid {
+    display: grid; grid-template-columns: repeat(3,1fr); grid-template-rows: repeat(3,1fr);
+    width: 100%; height: 100%; padding: 1px;
+  }
+  .notes-grid span {
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(0.45rem, 1.6vw, 0.62rem);
+    font-weight: 600; color: var(--note-color); line-height: 1;
+  }
+
+  /* ── NUMBER PAD ──────────────────────────────────────── */
+  #numpad-area {
+    width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 6px;
+  }
+  #numpad {
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px;
+  }
+  .num-btn {
+    aspect-ratio: 1/1;
+    border: 1.5px solid var(--pad-btn-border);
+    border-radius: 10px; background: var(--pad-btn-bg);
+    font-size: clamp(0.9rem, 3.2vw, 1.2rem);
+    font-weight: 700; cursor: pointer; color: var(--text-main);
+    display: flex; align-items: center; justify-content: center;
+    transition: all var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; position: relative; overflow: hidden;
+  }
+  .num-btn:hover  { background: var(--pad-btn-hover); border-color: var(--button-primary); }
+  .num-btn:active { background: var(--pad-btn-active); transform: scale(0.88); }
+  .num-btn.completed { opacity: 0.3; pointer-events: none; }
+
+  /* ── ACTION BUTTONS ──────────────────────────────────── */
+  #action-row {
+    display: flex; gap: 6px; width: 100%; max-width: 420px;
+  }
+  .action-btn {
+    flex: 1; padding: 9px 4px; border: 1.5px solid var(--pad-btn-border);
+    border-radius: 10px; background: var(--pad-btn-bg);
+    font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text-main);
+    transition: all var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none; text-align: center; line-height: 1.3;
+  }
+  .action-btn:hover  { background: var(--pad-btn-hover); border-color: var(--button-primary); }
+  .action-btn:active { transform: scale(0.93); }
+  #btn-erase  { background: var(--erase-btn-bg); }
+  #btn-notes  { background: var(--pad-btn-bg); }
+  #btn-notes.active { background: var(--notes-on-bg); border-color: #16a34a; color: #16a34a; }
+  #btn-hint   { background: var(--hint-btn-bg); }
+  #btn-check  { background: var(--check-btn-bg); }
+  #btn-new    { background: var(--button-primary); color: var(--button-primary-text); border-color: var(--button-primary); }
+
+  /* ── WIN OVERLAY ─────────────────────────────────────── */
+  #win-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--win-overlay); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #win-overlay.show { display: flex; }
+  #win-card {
+    background: var(--surface); border-radius: 20px;
+    padding: 32px 28px; text-align: center; max-width: 320px; width: 90%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: pop 0.3s ease-out;
+  }
+  @media (prefers-reduced-motion: reduce) { #win-card { animation: none; } }
+  #win-card h2 { font-size: 2rem; margin-bottom: 6px; }
+  #win-card .win-diff { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px; }
+  #win-card .win-stats { display: flex; gap: 24px; justify-content: center; margin-bottom: 20px; }
+  #win-card .win-stat { display: flex; flex-direction: column; align-items: center; }
+  #win-card .win-stat-val { font-size: 1.5rem; font-weight: 800; color: var(--text-main); }
+  #win-card .win-stat-lbl { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  #win-card .win-best { font-size: 0.85rem; color: var(--difficulty-easy); font-weight: 700; margin-bottom: 10px; min-height: 1.1rem; }
+  #win-achievements { font-size: 0.8rem; color: var(--button-primary); margin-bottom: 14px; min-height: 1rem; }
+  #win-play-again {
+    width: 100%; padding: 12px; background: var(--button-primary);
+    color: #fff; border: none; border-radius: 12px;
+    font-size: 1rem; font-weight: 700; cursor: pointer;
+    transition: opacity var(--transition);
+  }
+  #win-play-again:hover { opacity: 0.88; }
+
+  /* ── CONFETTI ─── */
+  #confetti-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 99; }
+
+  /* ── TOAST ──────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1a2e; color: #fff;
+    padding: 10px 20px; border-radius: 24px;
+    font-size: 0.9rem; font-weight: 600;
+    z-index: 200; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s ease;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ── MODAL (Profile / Stats) ─────────────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: var(--modal-bg); z-index: 150;
+    align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-card {
+    background: var(--surface); border-radius: 20px;
+    padding: 24px 20px; max-width: 340px; width: 100%;
+    max-height: 85vh; overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .modal-card h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; }
+  .modal-close {
+    float: right; background: none; border: none;
+    font-size: 1.3rem; cursor: pointer; color: var(--text-muted);
+    line-height: 1; margin-top: -4px;
+  }
+  .modal-section { margin-bottom: 18px; }
+  .modal-section h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 8px; }
+  .profile-name-row { display: flex; gap: 8px; align-items: center; }
+  .profile-name-row input {
+    flex: 1; padding: 8px 10px; border: 1.5px solid var(--pad-btn-border);
+    border-radius: 8px; background: var(--bg); color: var(--text-main);
+    font-size: 0.9rem; font-weight: 600;
+  }
+  .profile-name-row input:focus { outline: 2px solid var(--button-primary); border-color: transparent; }
+  .profile-name-row button {
+    padding: 8px 14px; background: var(--button-primary); color: #fff;
+    border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.85rem;
+  }
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-item { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+  .stat-item-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .stat-item-value { font-size: 1.1rem; font-weight: 800; color: var(--text-main); }
+  .diff-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 8px; }
+  .diff-stat-cell { background: var(--bg); border-radius: 8px; padding: 8px; text-align: center; }
+  .diff-stat-cell .dsv { font-size: 1rem; font-weight: 800; color: var(--text-main); }
+  .diff-stat-cell .dsl { font-size: 0.64rem; color: var(--text-muted); text-transform: uppercase; }
+  .streak-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 6px; }
+  .streak-badge { flex: 1; background: var(--bg); border-radius: 8px; padding: 8px; text-align: center; }
+  .streak-badge .sv { font-size: 1.2rem; font-weight: 800; color: var(--button-primary); }
+  .streak-badge .sl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; }
+  .achievement-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .achievement-list li {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg); border-radius: 8px; padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+  .achievement-list li .ach-icon { font-size: 1.1rem; }
+  .achievement-list li .ach-name { font-weight: 700; color: var(--text-main); }
+  .achievement-list li .ach-desc { font-size: 0.72rem; color: var(--text-muted); }
+  .achievement-list li.locked { opacity: 0.45; }
+
+  /* ── RESPONSIVE ──────────────────────────────────────── */
+  @media (min-height: 700px) and (min-width: 400px) {
+    #grid-wrap { max-width: 390px; }
+  }
+  @media (max-width: 360px) {
+    .action-btn { font-size: 0.68rem; padding: 8px 2px; }
+    .num-btn { border-radius: 8px; }
+  }
+</style>
+
+<!--GAMESHELL_V1-->
+<script>window.GS_CONFIG={"id":"26-sudoku","title":"Sudoku","difficulties":["easy","normal","hard"],"howToPlay":"\u003cp>\u003cstrong>Goal:\u003c/strong> fill the grid 1–9.\u003c/p>\u003cul>\u003cli>Each row, column and 3×3 box holds 1–9 once.\u003c/li>\u003cli>\u003cstrong>Controls:\u003c/strong> select a cell, type or tap a number.\u003c/li>\u003c/ul>","hints":["Find a cell where only one number can legally fit.","Scan each row, column and box for the missing digit.","Pencil in candidates for tricky cells to compare."]};</script>
+<script>
+/* ===========================================================================
+ * GameShell v1 — universal drop-in options overlay for single-file web games.
+ * Adds: Settings (Sound, Music, Difficulty, Theme, Leaderboard, How to Play,
+ * Reset) + an in-play control bar (Hint, Sound, Settings) with a rate-limited
+ * Hint (2 / 24h, refills on new game). Game-agnostic, namespaced, Shadow-DOM
+ * isolated, persisted per game. Safe to inject into any HTML game once.
+ * ======================================================================== */
+(function () {
+  "use strict";
+  if (window.__gsInstalled) return;
+  window.__gsInstalled = true;
+
+  /* ---------- per-game config (injected just above this script) ---------- */
+  var CFG = window.GS_CONFIG || {};
+  var GID = CFG.id || (location.pathname.split("/").filter(Boolean).pop() || "game").replace(/\.html?$/i, "");
+  var TITLE = CFG.title || document.title || "Game";
+  var DIFFS = (CFG.difficulties && CFG.difficulties.length) ? CFG.difficulties : ["easy", "normal", "hard"];
+  var HOWTO = CFG.howToPlay || "<p>Use the on-screen controls (or your keyboard) to play. Your progress is saved automatically on this device.</p>";
+  var TIPS = (CFG.hints && CFG.hints.length) ? CFG.hints.slice() : [
+    "Take your time — there's no rush.",
+    "Plan one move ahead before you commit.",
+    "Stuck? Try a new game from Settings to reset and get fresh hints."
+  ];
+  var HINT_MAX = CFG.hintMax || 2;
+  var WINDOW_MS = 24 * 60 * 60 * 1000;
+
+  /* ----------------------------- storage --------------------------------- */
+  function k(name) { return "gs:" + GID + ":" + name; }
+  function load(name, def) {
+    try { var v = JSON.parse(localStorage.getItem(k(name))); return v == null ? def : v; }
+    catch (e) { return def; }
+  }
+  function save(name, val) { try { localStorage.setItem(k(name), JSON.stringify(val)); } catch (e) {} }
+
+  var SDEF = { v: 1, sound: true, music: true, difficulty: (DIFFS.indexOf("normal") >= 0 ? "normal" : DIFFS[0]), theme: "system" };
+  var settings = Object.assign({}, SDEF, load("settings", {}));
+  if (DIFFS.indexOf(settings.difficulty) < 0) settings.difficulty = SDEF.difficulty;
+  function persist() { save("settings", settings); }
+
+  /* ------------------------- tiny event emitter -------------------------- */
+  var subs = {};
+  function on(ev, fn) { (subs[ev] = subs[ev] || []).push(fn); return function () { subs[ev] = (subs[ev] || []).filter(function (f) { return f !== fn; }); }; }
+  function emit(ev, data) {
+    (subs[ev] || []).forEach(function (fn) { try { fn(data); } catch (e) {} });
+    try { window.dispatchEvent(new CustomEvent("gs:" + ev, { detail: data })); } catch (e) {}
+  }
+
+  /* ============================== AUDIO ================================== */
+  /* Sound = master (everything). Music = looping media + opt-in music gain. */
+  var soundOn = settings.sound, musicOn = settings.music;
+  var acRegistry = [];
+
+  (function patchWebAudio() {
+    var Orig = window.AudioContext || window.webkitAudioContext;
+    if (!Orig || Orig.__gsPatched) return;
+    function Patched() {
+      var ctx = arguments.length ? new Orig(arguments[0]) : new Orig();
+      try {
+        var realDest = ctx.destination;
+        var sfx = ctx.createGain(); sfx.connect(realDest);
+        var music = ctx.createGain(); music.connect(realDest);
+        sfx.gain.value = soundOn ? 1 : 0;
+        music.gain.value = (soundOn && musicOn) ? 1 : 0;
+        Object.defineProperty(ctx, "destination", { get: function () { return sfx; }, configurable: true });
+        ctx.__gsSfx = sfx; ctx.__gsMusic = music; ctx.__gsRealDest = realDest;
+        acRegistry.push(ctx);
+      } catch (e) {}
+      return ctx;
+    }
+    try { Patched.prototype = Orig.prototype; } catch (e) {}
+    Patched.__gsPatched = true;
+    try { window.AudioContext = Patched; } catch (e) {}
+    try { window.webkitAudioContext = Patched; } catch (e) {}
+  })();
+
+  var mediaEls = [];
+  (function patchMedia() {
+    if (!window.HTMLMediaElement || HTMLMediaElement.__gsPatched) return;
+    var proto = HTMLMediaElement.prototype;
+    var d = Object.getOwnPropertyDescriptor(proto, "muted");
+    if (d && d.get && d.set) {
+      Object.defineProperty(proto, "muted", {
+        configurable: true,
+        get: function () { return (!soundOn) || (this.loop && !musicOn) || d.get.call(this); },
+        set: function (v) { try { d.set.call(this, v); } catch (e) {} }
+      });
+    }
+    var op = proto.play;
+    proto.play = function () {
+      if (mediaEls.indexOf(this) < 0) mediaEls.push(this);
+      try { this.volume = this.volume; } catch (e) {}
+      return op.apply(this, arguments);
+    };
+    HTMLMediaElement.__gsPatched = true;
+  })();
+
+  function applyAudio() {
+    acRegistry.forEach(function (ctx) {
+      try {
+        if (ctx.__gsSfx) ctx.__gsSfx.gain.setValueAtTime(soundOn ? 1 : 0, ctx.currentTime);
+        if (ctx.__gsMusic) ctx.__gsMusic.gain.setValueAtTime((soundOn && musicOn) ? 1 : 0, ctx.currentTime);
+      } catch (e) {}
+    });
+    mediaEls.forEach(function (el) { try { el.muted = el.muted; } catch (e) {} });
+  }
+
+  /* ============================== THEME ================================== */
+  function applyTheme() {
+    var t = settings.theme;
+    var root = document.documentElement;
+    root.classList.remove("gs-theme-light", "gs-theme-dark", "gs-theme-system");
+    root.classList.add("gs-theme-" + t);
+    var eff = t;
+    if (t === "system") {
+      eff = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+    }
+    try { root.style.colorScheme = (t === "system") ? "light dark" : t; } catch (e) {}
+    var bd = document.getElementById("gs-backdrop");
+    if (bd) bd.style.background = (eff === "dark") ? "#0e1014" : "#eef1f6";
+    if (host) host.setAttribute("data-theme", eff);
+    emit("theme", { theme: t, effective: eff });
+  }
+  if (window.matchMedia) {
+    try { window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (settings.theme === "system") applyTheme(); }); }
+    catch (e) {}
+  }
+
+  /* ============================== HINTS ================================== */
+  function hintState() {
+    var s = load("hint", { v: 1, spentAt: [], puzzleId: "", lastSeen: Date.now() });
+    var now = Date.now();
+    // anti-tamper: clamp future stamps; ignore large backward clock jumps
+    if (s.lastSeen && now < s.lastSeen - 60000) { s.spentAt = (s.spentAt || []).map(function () { return now; }); }
+    s.spentAt = (s.spentAt || []).map(function (t) { return t > now ? now : t; }).filter(function (t) { return now - t < WINDOW_MS; });
+    s.lastSeen = now;
+    return s;
+  }
+  function hintsLeft() { var s = hintState(); save("hint", s); return Math.max(0, HINT_MAX - s.spentAt.length); }
+  function nextHintMs() {
+    var s = hintState();
+    if (s.spentAt.length < HINT_MAX) return 0;
+    var oldest = Math.min.apply(null, s.spentAt);
+    return Math.max(0, WINDOW_MS - (Date.now() - oldest));
+  }
+  function spendHint() {
+    var s = hintState();
+    if (HINT_MAX - s.spentAt.length <= 0) return false;
+    s.spentAt.push(Date.now()); save("hint", s); return true;
+  }
+  function refillHints(puzzleId) {
+    var s = hintState();
+    if (puzzleId != null && String(puzzleId) === String(s.puzzleId)) { save("hint", s); return; } // same board: no mint
+    s.spentAt = []; s.puzzleId = (puzzleId == null ? "" : String(puzzleId)); save("hint", s);
+    updateHintBadge();
+  }
+  var tipIdx = 0;
+  function provideHintText() {
+    if (typeof CFG.onHint === "function") { try { var r = CFG.onHint(); if (r) return String(r); } catch (e) {} }
+    var t = TIPS[tipIdx % TIPS.length]; tipIdx++; return t;
+  }
+
+  /* ============================ LEADERBOARD ============================= */
+  function getBoard(diff) { var b = load("scores", { v: 1, boards: {} }); return (b.boards && b.boards[diff]) || []; }
+  function submitScore(score, opts) {
+    score = Number(score); if (!isFinite(score)) return;
+    opts = opts || {};
+    var diff = opts.difficulty || settings.difficulty;
+    var name = (opts.name || "You").toString().slice(0, 12);
+    var b = load("scores", { v: 1, boards: {} }); b.boards = b.boards || {};
+    var list = b.boards[diff] || [];
+    list.push({ name: name, score: score, ts: Date.now() });
+    list.sort(function (a, c) { return c.score - a.score; });
+    b.boards[diff] = list.slice(0, 10);
+    save("scores", b);
+    emit("score", { score: score, difficulty: diff });
+    return b.boards[diff];
+  }
+
+  /* ============================== UI SHELL ============================== */
+  var host, root, $bar, $hintBtn, $soundBtn, $modal, $panelHost;
+  var lastFocus = null;
+
+  var CSS = ''
+    + ':host{all:initial}'
+    + '*{box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}'
+    + '.bar{position:fixed;top:0;right:0;display:flex;gap:6px;padding:8px;'
+    + 'padding-top:max(8px,env(safe-area-inset-top));padding-right:max(8px,env(safe-area-inset-right));z-index:5}'
+    + '.btn{all:unset;cursor:pointer;display:flex;align-items:center;justify-content:center;'
+    + 'min-width:44px;min-height:44px;width:44px;height:44px;border-radius:12px;font-size:20px;line-height:1;'
+    + 'background:var(--c-btn);color:var(--c-tx);box-shadow:0 2px 8px rgba(0,0,0,.25);'
+    + 'touch-action:manipulation;-webkit-tap-highlight-color:transparent;position:relative;transition:transform .08s,background .15s}'
+    + '.btn:hover{background:var(--c-btnH)}.btn:active{transform:scale(.92)}'
+    + '.btn:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.badge{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;'
+    + 'background:var(--c-acc);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}'
+    + '.btn.off{opacity:.45}'
+    + '.scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:10;'
+    + 'padding:16px;padding-top:max(16px,env(safe-area-inset-top));padding-bottom:max(16px,env(safe-area-inset-bottom))}'
+    + '.scrim.open{display:flex}'
+    + '.modal{width:min(420px,100%);max-height:88vh;overflow:auto;background:var(--c-bg);color:var(--c-tx);'
+    + 'border-radius:18px;box-shadow:0 18px 60px rgba(0,0,0,.5);padding:18px;-webkit-overflow-scrolling:touch}'
+    + '.mhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}'
+    + '.mtitle{font-size:18px;font-weight:800;letter-spacing:.2px}'
+    + '.x{all:unset;cursor:pointer;font-size:22px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:var(--c-tx)}'
+    + '.x:hover{background:var(--c-btn)}.x:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.sub{font-size:12px;color:var(--c-mut);margin:-2px 0 12px}'
+    + '.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-top:1px solid var(--c-line)}'
+    + '.row .lab{font-size:15px;font-weight:600}.row .desc{font-size:12px;color:var(--c-mut);margin-top:2px}'
+    + '.seg{display:flex;gap:4px;background:var(--c-btn);padding:4px;border-radius:12px}'
+    + '.seg button{all:unset;cursor:pointer;padding:8px 12px;min-height:36px;border-radius:9px;font-size:13px;font-weight:600;color:var(--c-mut);touch-action:manipulation}'
+    + '.seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.seg button:focus-visible{outline:2px solid var(--c-acc)}'
+    + '.sw{all:unset;cursor:pointer;width:52px;height:30px;border-radius:16px;background:var(--c-line);position:relative;transition:background .15s;flex:0 0 auto}'
+    + '.sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.4)}'
+    + '.sw[aria-checked=true]{background:var(--c-acc)}.sw[aria-checked=true]::after{left:25px}'
+    + '.sw:focus-visible{outline:3px solid var(--c-acc);outline-offset:2px}'
+    + '.lbtn{all:unset;cursor:pointer;display:block;width:100%;text-align:left;padding:13px 12px;margin-top:8px;border-radius:12px;'
+    + 'background:var(--c-btn);color:var(--c-tx);font-size:15px;font-weight:600;touch-action:manipulation}'
+    + '.lbtn:hover{background:var(--c-btnH)}.lbtn:focus-visible{outline:3px solid var(--c-acc)}'
+    + '.lbtn.danger{color:#ff6b6b}'
+    + '.back{all:unset;cursor:pointer;font-size:14px;color:var(--c-acc);font-weight:700;margin-bottom:8px;display:inline-flex;gap:4px;align-items:center}'
+    + '.howto{font-size:14px;line-height:1.6}.howto p{margin:8px 0}.howto strong{color:var(--c-acc)}'
+    + '.howto ul{margin:8px 0;padding-left:20px}.howto li{margin:4px 0}'
+    + '.lbtabs{display:flex;gap:6px;margin:6px 0 10px}'
+    + '.lbtabs button{all:unset;cursor:pointer;flex:1;text-align:center;padding:8px;border-radius:10px;background:var(--c-btn);font-size:13px;font-weight:600;color:var(--c-mut)}'
+    + '.lbtabs button[aria-pressed=true]{background:var(--c-acc);color:#fff}'
+    + '.lblist{list-style:none;margin:0;padding:0}'
+    + '.lblist li{display:flex;justify-content:space-between;padding:9px 6px;border-top:1px solid var(--c-line);font-size:14px}'
+    + '.lblist li span:first-child{color:var(--c-mut)}'
+    + '.empty{color:var(--c-mut);font-size:14px;text-align:center;padding:18px}'
+    + '.toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);'
+    + 'background:var(--c-bg);color:var(--c-tx);border:1px solid var(--c-line);padding:12px 16px;border-radius:12px;'
+    + 'max-width:86vw;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.4);z-index:20;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}'
+    + '.toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}'
+    + ':host([data-theme=dark]){--c-bg:#171a21;--c-tx:#f2f4f8;--c-mut:#9aa3b2;--c-line:#2c313c;--c-btn:#222732;--c-btnH:#2c333f;--c-acc:#4f8cff}'
+    + ':host([data-theme=light]){--c-bg:#ffffff;--c-tx:#15181f;--c-mut:#646b7a;--c-line:#e6e8ee;--c-btn:#eef1f6;--c-btnH:#e3e7ef;--c-acc:#2f6bff}'
+    + '@media (prefers-reduced-motion: reduce){*{transition:none!important}}';
+
+  function el(tag, attrs, html) {
+    var n = document.createElement(tag);
+    if (attrs) for (var a in attrs) n.setAttribute(a, attrs[a]);
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  function buildUI() {
+    // backdrop (light DOM, behind everything)
+    var bd = el("div", { id: "gs-backdrop" });
+    bd.style.cssText = "position:fixed;inset:0;z-index:-1;pointer-events:none";
+    document.body.appendChild(bd);
+
+    host = el("div", { id: "gs-host" });
+    host.style.cssText = "position:fixed;top:0;left:0;width:0;height:0;z-index:2147483647;isolation:isolate";
+    document.body.appendChild(host);
+    root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    var style = el("style"); style.textContent = CSS; root.appendChild(style);
+
+    // ---- in-play control bar: Hint · Sound · Settings ----
+    $bar = el("div", { class: "bar" });
+    $hintBtn = el("button", { class: "btn", "aria-label": "Hint", title: "Hint" }, "💡");
+    $hintBtn.appendChild(el("span", { class: "badge" }, String(HINT_MAX)));
+    $soundBtn = el("button", { class: "btn", "aria-label": "Toggle sound", title: "Sound" }, "🔊");
+    var $setBtn = el("button", { class: "btn", "aria-label": "Settings", title: "Settings" }, "⚙️");
+    $bar.appendChild($hintBtn); $bar.appendChild($soundBtn); $bar.appendChild($setBtn);
+    root.appendChild($bar);
+
+    // ---- modal scrim + container ----
+    $modal = el("div", { class: "scrim", role: "dialog", "aria-modal": "true", "aria-label": "Settings" });
+    $panelHost = el("div", { class: "modal" });
+    $modal.appendChild($panelHost);
+    root.appendChild($modal);
+
+    $hintBtn.addEventListener("click", doHint);
+    $soundBtn.addEventListener("click", function () { setSound(!soundOn); });
+    $setBtn.addEventListener("click", openSettings);
+    $modal.addEventListener("click", function (e) { if (e.target === $modal) closeModal(); });
+    root.addEventListener("keydown", function (e) { if (e.key === "Escape" && $modal.classList.contains("open")) closeModal(); trapFocus(e); });
+
+    updateSoundBtn(); updateHintBadge();
+  }
+
+  function updateSoundBtn() { if ($soundBtn) { $soundBtn.textContent = soundOn ? "🔊" : "🔇"; $soundBtn.classList.toggle("off", !soundOn); } }
+  function updateHintBadge() {
+    if (!$hintBtn) return;
+    var left = hintsLeft();
+    var b = $hintBtn.querySelector(".badge");
+    if (b) b.textContent = String(left);
+    $hintBtn.classList.toggle("off", left === 0);
+  }
+
+  /* ----------------------------- panels --------------------------------- */
+  function openModal(render) {
+    lastFocus = document.activeElement;
+    render();
+    $modal.classList.add("open");
+    var f = $panelHost.querySelector("button,[tabindex],input"); if (f) f.focus();
+  }
+  function closeModal() {
+    $modal.classList.remove("open");
+    if (lastFocus && lastFocus.focus) { try { lastFocus.focus(); } catch (e) {} }
+  }
+  function trapFocus(e) {
+    if (e.key !== "Tab" || !$modal.classList.contains("open")) return;
+    var f = $panelHost.querySelectorAll('button,[href],input,[tabindex]:not([tabindex="-1"])');
+    if (!f.length) return;
+    var first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && root.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && root.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+
+  function header(title, withBack) {
+    var h = el("div", { class: "mhead" });
+    var left = el("div");
+    if (withBack) { var b = el("button", { class: "back", "aria-label": "Back to settings" }, "‹ Back"); b.addEventListener("click", openSettings); left.appendChild(b); }
+    left.appendChild(el("div", { class: "mtitle" }, title));
+    var x = el("button", { class: "x", "aria-label": "Close" }, "✕"); x.addEventListener("click", closeModal);
+    h.appendChild(left); h.appendChild(x); return h;
+  }
+
+  function renderSettings() {
+    $panelHost.innerHTML = "";
+    $panelHost.setAttribute("aria-label", "Settings");
+    $panelHost.appendChild(header("Settings"));
+    $panelHost.appendChild(el("div", { class: "sub" }, TITLE));
+
+    // Sound
+    $panelHost.appendChild(toggleRow("Sound", "All game audio", soundOn, function (v) { setSound(v); }));
+    // Music
+    $panelHost.appendChild(toggleRow("Music", "Background music only", musicOn, function (v) { setMusic(v); }));
+
+    // Difficulty
+    var dr = el("div", { class: "row" });
+    var dl = el("div"); dl.appendChild(el("div", { class: "lab" }, "Difficulty"));
+    dl.appendChild(el("div", { class: "desc" }, "Applies on your next new game"));
+    dr.appendChild(dl);
+    dr.appendChild(segment(DIFFS.map(cap), DIFFS.indexOf(settings.difficulty), function (i) {
+      settings.difficulty = DIFFS[i]; persist(); emit("difficulty", { difficulty: settings.difficulty });
+    }));
+    $panelHost.appendChild(dr);
+
+    // Theme
+    var tr = el("div", { class: "row" });
+    var tl = el("div"); tl.appendChild(el("div", { class: "lab" }, "Theme"));
+    tl.appendChild(el("div", { class: "desc" }, "System · Light · Dark"));
+    tr.appendChild(tl);
+    var TH = ["system", "light", "dark"];
+    tr.appendChild(segment(["System", "Light", "Dark"], TH.indexOf(settings.theme), function (i) {
+      settings.theme = TH[i]; persist(); applyTheme();
+    }));
+    $panelHost.appendChild(tr);
+
+    // Leaderboard / How to Play / Reset
+    var lb = el("button", { class: "lbtn" }, "🏆  Leaderboard"); lb.addEventListener("click", function () { openModal(renderLeaderboard); });
+    var ht = el("button", { class: "lbtn" }, "❓  How to Play"); ht.addEventListener("click", function () { openModal(renderHowTo); });
+    var rs = el("button", { class: "lbtn danger" }, "↺  Reset progress"); rs.addEventListener("click", resetProgress);
+    $panelHost.appendChild(lb); $panelHost.appendChild(ht); $panelHost.appendChild(rs);
+  }
+
+  function renderHowTo() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("How to Play", true));
+    $panelHost.appendChild(el("div", { class: "howto" }, HOWTO));
+  }
+
+  var lbActive = null;
+  function renderLeaderboard() {
+    $panelHost.innerHTML = "";
+    $panelHost.appendChild(header("Leaderboard", true));
+    if (lbActive == null) lbActive = settings.difficulty;
+    var tabs = el("div", { class: "lbtabs" });
+    DIFFS.forEach(function (d) {
+      var b = el("button", { "aria-pressed": String(d === lbActive) }, cap(d));
+      b.addEventListener("click", function () { lbActive = d; renderLeaderboard(); });
+      tabs.appendChild(b);
+    });
+    $panelHost.appendChild(tabs);
+    var list = getBoard(lbActive);
+    if (!list.length) { $panelHost.appendChild(el("div", { class: "empty" }, "No scores yet.\nPlay a game to set a record!")); return; }
+    var ul = el("ul", { class: "lblist" });
+    list.forEach(function (r, i) {
+      var li = el("li");
+      li.appendChild(el("span", null, (i + 1) + ". " + r.name));
+      li.appendChild(el("span", null, String(r.score)));
+      ul.appendChild(li);
+    });
+    $panelHost.appendChild(ul);
+  }
+
+  function toggleRow(lab, desc, val, onChange) {
+    var r = el("div", { class: "row" });
+    var l = el("div"); l.appendChild(el("div", { class: "lab" }, lab)); l.appendChild(el("div", { class: "desc" }, desc));
+    var sw = el("button", { class: "sw", role: "switch", "aria-checked": String(!!val), "aria-label": lab });
+    sw.addEventListener("click", function () { var nv = sw.getAttribute("aria-checked") !== "true"; sw.setAttribute("aria-checked", String(nv)); onChange(nv); });
+    r.appendChild(l); r.appendChild(sw); return r;
+  }
+  function segment(labels, active, onPick) {
+    var s = el("div", { class: "seg", role: "group" });
+    labels.forEach(function (lab, i) {
+      var b = el("button", { "aria-pressed": String(i === active) }, lab);
+      b.addEventListener("click", function () {
+        Array.prototype.forEach.call(s.children, function (c, j) { c.setAttribute("aria-pressed", String(j === i)); });
+        onPick(i);
+      });
+      s.appendChild(b);
+    });
+    return s;
+  }
+
+  /* --------------------------- behaviours -------------------------------- */
+  function setSound(v) { soundOn = settings.sound = !!v; persist(); applyAudio(); updateSoundBtn(); emit("sound", { on: soundOn }); }
+  function setMusic(v) { musicOn = settings.music = !!v; persist(); applyAudio(); emit("music", { on: musicOn }); }
+
+  function doHint() {
+    var left = hintsLeft();
+    if (left <= 0) {
+      var ms = nextHintMs(); var h = Math.floor(ms / 3600000), m = Math.ceil((ms % 3600000) / 60000);
+      toast("No hints left. Next in " + h + "h " + m + "m — or start a new game.");
+      return;
+    }
+    if (!spendHint()) return;
+    updateHintBadge();
+    toast("💡 " + provideHintText());
+    emit("hint", { left: hintsLeft() });
+  }
+
+  function resetProgress() {
+    if (!confirm("Reset ALL saved progress and high scores for " + TITLE + "? This cannot be undone.")) return;
+    try {
+      var rm = [];
+      for (var i = 0; i < localStorage.length; i++) { var key = localStorage.key(i); if (key && key.indexOf("gs:" + GID + ":") === 0) rm.push(key); }
+      rm.forEach(function (key) { localStorage.removeItem(key); });
+    } catch (e) {}
+    emit("reset", {});
+    toast("Progress reset. Reloading…");
+    setTimeout(function () { location.reload(); }, 700);
+  }
+
+  var toastT;
+  function toast(msg) {
+    var t = root.querySelector(".toast");
+    if (!t) { t = el("div", { class: "toast" }); root.appendChild(t); }
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove("show"); }, 3200);
+  }
+
+  function openSettings() { openModal(renderSettings); }
+
+  /* ----------------------------- public API ------------------------------ */
+  window.GameShell = {
+    version: 1,
+    config: function (o) { Object.assign(CFG, o || {}); if (o) { if (o.howToPlay) HOWTO = o.howToPlay; if (o.hints) TIPS = o.hints.slice(); } return this; },
+    getDifficulty: function () { return settings.difficulty; },
+    onDifficulty: function (fn) { return on("difficulty", function (d) { fn(d.difficulty); }); },
+    setDifficulty: function (d) { if (DIFFS.indexOf(d) >= 0) { settings.difficulty = d; persist(); emit("difficulty", { difficulty: d }); } },
+    isSoundOn: function () { return soundOn; },
+    isMusicOn: function () { return musicOn; },
+    isMuted: function () { return !soundOn; },
+    submitScore: submitScore,
+    getScores: getBoard,
+    newGame: function (puzzleId) { refillHints(puzzleId); emit("newgame", { puzzleId: puzzleId }); },
+    useHint: doHint,
+    hintsLeft: hintsLeft,
+    onHint: function (fn) { CFG.onHint = fn; return this; },
+    openSettings: openSettings,
+    openHowToPlay: function () { openModal(renderHowTo); },
+    openLeaderboard: function () { openModal(renderLeaderboard); },
+    on: on,
+    routeMusic: function (node, ctx) { try { if (ctx && ctx.__gsMusic && node && node.connect) { node.connect(ctx.__gsMusic); return true; } } catch (e) {} return false; }
+  };
+
+  /* ------------------------------ boot ----------------------------------- */
+  function boot() {
+    // ensure a viewport meta exists for mobile
+    if (!document.querySelector('meta[name="viewport"]')) {
+      var m = el("meta", { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" });
+      document.head.appendChild(m);
+    }
+    buildUI();
+    applyTheme();
+    applyAudio();
+    emit("ready", { id: GID });
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+</script>
+<!--/GAMESHELL_V1-->
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<div id="header">
+  <h1 id="title-btn" title="View Profile & Stats" aria-label="Sudoku - click to open profile">Sudoku</h1>
+  <div id="header-btns">
+    <button class="icon-btn" id="btn-undo" title="Undo (Ctrl+Z)" aria-label="Undo">↩</button>
+    <button class="icon-btn" id="btn-pause" title="Pause (P)" aria-label="Pause">⏸</button>
+    <button class="icon-btn" id="btn-mute" title="Mute/Unmute" aria-label="Mute">🔊</button>
+    <button class="icon-btn" id="btn-dark" title="Dark mode" aria-label="Dark mode">🌙</button>
+  </div>
+</div>
+
+<div id="diff-row" role="group" aria-label="Difficulty">
+  <button class="diff-btn" data-diff="easy">Easy</button>
+  <button class="diff-btn" data-diff="medium">Medium</button>
+  <button class="diff-btn" data-diff="hard">Hard</button>
+</div>
+
+<div id="hud" role="status" aria-label="Game status">
+  <div class="hud-block">
+    <span class="hud-label">Time</span>
+    <span class="hud-value" id="timer-val">00:00</span>
+  </div>
+  <div class="hud-block">
+    <span class="hud-label">Mistakes</span>
+    <span class="hud-value" id="mistake-val">0</span>
+  </div>
+  <div class="hud-block">
+    <span class="hud-label">Best</span>
+    <span class="hud-value" id="best-val">--:--</span>
+  </div>
+</div>
+
+<div id="grid-wrap">
+  <div id="grid" role="grid" aria-label="Sudoku grid"></div>
+  <div id="pause-veil" aria-live="polite">
+    <div class="pause-text">⏸ Paused</div>
+    <div class="pause-sub">Press P or tap Resume to continue</div>
+    <button class="action-btn" id="btn-resume" style="margin-top:8px;flex:none;padding:10px 24px">Resume</button>
+  </div>
+</div>
+
+<div id="numpad-area">
+  <div id="numpad" role="group" aria-label="Number input"></div>
+  <div id="action-row">
+    <button class="action-btn" id="btn-erase" aria-label="Erase">⌫ Erase</button>
+    <button class="action-btn" id="btn-notes" aria-label="Toggle notes mode">✏ Notes</button>
+    <button class="action-btn" id="btn-hint" aria-label="Hint">💡 Hint</button>
+    <button class="action-btn" id="btn-check" aria-label="Check puzzle">✓ Check</button>
+    <button class="action-btn" id="btn-new" aria-label="New game">⊕ New</button>
+  </div>
+</div>
+
+<!-- Win Overlay -->
+<div id="win-overlay" role="dialog" aria-modal="true" aria-label="Puzzle Complete">
+  <div id="win-card">
+    <h2>🎉 Solved!</h2>
+    <div class="win-diff" id="win-diff-label"></div>
+    <div class="win-stats">
+      <div class="win-stat">
+        <span class="win-stat-val" id="win-time">00:00</span>
+        <span class="win-stat-lbl">Time</span>
+      </div>
+      <div class="win-stat">
+        <span class="win-stat-val" id="win-mistakes">0</span>
+        <span class="win-stat-lbl">Mistakes</span>
+      </div>
+    </div>
+    <div class="win-best" id="win-best-msg"></div>
+    <div id="win-achievements"></div>
+    <button id="win-play-again">Play Again</button>
+  </div>
+</div>
+
+<!-- Profile Modal -->
+<div id="profile-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-label="Player Profile">
+  <div class="modal-card">
+    <button class="modal-close" id="profile-close" aria-label="Close profile">&times;</button>
+    <h2>👤 Profile</h2>
+
+    <div class="modal-section">
+      <h3>Display Name</h3>
+      <div class="profile-name-row">
+        <input type="text" id="profile-name-input" maxlength="24" placeholder="Your name" aria-label="Display name">
+        <button id="profile-name-save">Save</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Streak</h3>
+      <div class="streak-row">
+        <div class="streak-badge"><div class="sv" id="streak-current">0</div><div class="sl">Current</div></div>
+        <div class="streak-badge"><div class="sv" id="streak-best">0</div><div class="sl">Best</div></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Lifetime Stats</h3>
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat-item-label">Puzzles Solved</div><div class="stat-item-value" id="stat-total-solved">0</div></div>
+        <div class="stat-item"><div class="stat-item-label">Hints Used</div><div class="stat-item-value" id="stat-total-hints">0</div></div>
+        <div class="stat-item"><div class="stat-item-label">Total Mistakes</div><div class="stat-item-value" id="stat-total-mistakes">0</div></div>
+        <div class="stat-item"><div class="stat-item-label">Total Time</div><div class="stat-item-value" id="stat-total-time">0h</div></div>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Per Difficulty — Solved / Best / Avg</h3>
+      <div style="display:flex;flex-direction:column;gap:6px" id="diff-stats-wrap"></div>
+    </div>
+
+    <div class="modal-section">
+      <h3>Achievements</h3>
+      <ul class="achievement-list" id="ach-list"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════
+const SAVE_VERSION = 2;
+const NS = '26-sudoku_';
+
+const DIFF_CONFIG = {
+  easy:   { givens: 46 },
+  medium: { givens: 34 },
+  hard:   { givens: 26 }
+};
+
+const ACHIEVEMENTS_DEF = [
+  { id: 'first_solve',    icon: '🏅', name: 'First Solve',       desc: 'Complete your first puzzle' },
+  { id: 'zero_mistakes',  icon: '✨', name: 'Perfect',            desc: 'Solve with zero mistakes' },
+  { id: 'no_hints',       icon: '🧠', name: 'No Hints',           desc: 'Solve without using any hints' },
+  { id: 'hard_solve',     icon: '🔥', name: 'Hard Mode',          desc: 'Solve a Hard puzzle' },
+  { id: 'ten_puzzles',    icon: '🎯', name: 'Dedicated',          desc: 'Solve 10 puzzles' },
+  { id: 'speed_easy',     icon: '⚡', name: 'Speed Solver',       desc: 'Solve Easy in under 3 minutes' },
+  { id: 'streak3',        icon: '🔗', name: 'On a Roll',          desc: 'Win 3 puzzles in a row' },
+];
+
+// ── Seeded PRNG (mulberry32) ──
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+let rng = Math.random;
+
+function shuffle(arr, r) {
+  r = r || Math.random;
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+const row = i => Math.floor(i / 9);
+const col = i => i % 9;
+const box = i => Math.floor(row(i) / 3) * 3 + Math.floor(col(i) / 3);
+
+function isValid(board, idx, num) {
+  const r = row(idx), c = col(idx), b = box(idx);
+  for (let i = 0; i < 81; i++) {
+    if (board[i] === num) {
+      if (row(i) === r || col(i) === c || box(i) === b) return false;
+    }
+  }
+  return true;
+}
+
+const PEERS = Array.from({length:81}, (_,idx) => {
+  const peers = new Set();
+  const r = row(idx), c = col(idx), b = box(idx);
+  for (let i = 0; i < 81; i++) {
+    if (i !== idx && (row(i) === r || col(i) === c || box(i) === b)) peers.add(i);
+  }
+  return [...peers];
+});
+
+function countSolutions(board, limit = 2) {
+  const empty = [];
+  for (let i = 0; i < 81; i++) if (board[i] === 0) empty.push(i);
+  let count = 0;
+  function solve(k) {
+    if (count >= limit) return;
+    if (k === empty.length) { count++; return; }
+    const idx = empty[k];
+    const used = new Set(PEERS[idx].map(p => board[p]));
+    for (let n = 1; n <= 9; n++) {
+      if (!used.has(n)) { board[idx] = n; solve(k + 1); board[idx] = 0; }
+      if (count >= limit) return;
+    }
+  }
+  solve(0);
+  return count;
+}
+
+function generateSolution() {
+  const board = new Array(81).fill(0);
+  const digits = [1,2,3,4,5,6,7,8,9];
+  function fill(idx) {
+    if (idx === 81) return true;
+    if (board[idx] !== 0) return fill(idx + 1);
+    const nums = shuffle([...digits], rng);
+    for (const n of nums) {
+      if (isValid(board, idx, n)) { board[idx] = n; if (fill(idx + 1)) return true; board[idx] = 0; }
+    }
+    return false;
+  }
+  fill(0);
+  return board;
+}
+
+function generatePuzzle(difficulty) {
+  const solution = generateSolution();
+  const puzzle = [...solution];
+  const targetGivens = DIFF_CONFIG[difficulty].givens;
+  const toRemove = 81 - targetGivens;
+  const indices = shuffle([...Array(81).keys()], rng);
+  let removed = 0;
+  for (const idx of indices) {
+    if (removed >= toRemove) break;
+    const sym = 80 - idx;
+    if (puzzle[idx] === 0) continue;
+    const saved_idx = puzzle[idx];
+    const saved_sym = puzzle[sym];
+    puzzle[idx] = 0;
+    if (idx !== sym) puzzle[sym] = 0;
+    const test = [...puzzle];
+    const sols = countSolutions(test, 2);
+    if (sols === 1) { removed += (idx !== sym) ? 2 : 1; }
+    else { puzzle[idx] = saved_idx; if (idx !== sym) puzzle[sym] = saved_sym; }
+    if (removed >= toRemove) break;
+  }
+  return { puzzle, solution };
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME STATE
+// ═══════════════════════════════════════════════════════
+let G = {
+  puzzle:     new Array(81).fill(0),
+  solution:   new Array(81).fill(0),
+  board:      new Array(81).fill(0),
+  notes:      Array.from({length:81}, () => new Set()),
+  givens:     new Array(81).fill(false),
+  selected:   -1,
+  difficulty: 'easy',
+  mistakes:   0,
+  seconds:    0,
+  timerID:    null,
+  won:        false,
+  notesMode:  false,
+  muted:      false,
+  dark:       false,
+  started:    false,
+  paused:     false,
+  hintsUsed:  0,
+  undoStack:  [],   // [{idx, prevBoard, prevNotes, prevMistakes}]
+};
+
+// ── Player Profile ──────────────────────────────────────
+function loadProfile() {
+  try {
+    const raw = localStorage.getItem(NS + 'profile');
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  // First-visit: create profile
+  const id = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36));
+  const adjectives = ['Happy','Quick','Clever','Bold','Sharp','Bright','Keen','Swift'];
+  const nouns = ['Solver','Thinker','Player','Puzzler','Mind','Fox','Owl','Eagle'];
+  const name = adjectives[Math.floor(Math.random()*adjectives.length)] + ' ' + nouns[Math.floor(Math.random()*nouns.length)];
+  const profile = {
+    id,
+    name,
+    created: Date.now(),
+    totalSolved: 0,
+    totalMistakes: 0,
+    totalHints: 0,
+    totalSeconds: 0,
+    currentStreak: 0,
+    bestStreak: 0,
+    lastSolveDate: null,
+    perDiff: {
+      easy:   { solved: 0, totalSeconds: 0, totalMistakes: 0, bestSeconds: null },
+      medium: { solved: 0, totalSeconds: 0, totalMistakes: 0, bestSeconds: null },
+      hard:   { solved: 0, totalSeconds: 0, totalMistakes: 0, bestSeconds: null },
+    },
+    achievements: [],
+  };
+  saveProfile(profile);
+  return profile;
+}
+
+function saveProfile(p) {
+  try { localStorage.setItem(NS + 'profile', JSON.stringify(p)); } catch(e) {}
+}
+
+let profile = loadProfile();
+
+// ═══════════════════════════════════════════════════════
+//  AUDIO
+// ═══════════════════════════════════════════════════════
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playTone(type) {
+  if (G.muted) return;
+  try {
+    const ctx = getAudio();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    if (type === 'place') {
+      osc.type = 'sine'; osc.frequency.setValueAtTime(820, now);
+      gain.gain.setValueAtTime(0.18, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+      osc.start(now); osc.stop(now + 0.09);
+    } else if (type === 'note') {
+      osc.type = 'sine'; osc.frequency.setValueAtTime(620, now);
+      gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.start(now); osc.stop(now + 0.07);
+    } else if (type === 'error') {
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(140, now);
+      gain.gain.setValueAtTime(0.22, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.start(now); osc.stop(now + 0.22);
+    } else if (type === 'erase') {
+      osc.type = 'sine'; osc.frequency.setValueAtTime(400, now);
+      osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+      gain.gain.setValueAtTime(0.1, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.start(now); osc.stop(now + 0.08);
+    } else if (type === 'hint') {
+      [700, 1050].forEach((f, i) => {
+        const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type = 'sine'; o2.frequency.setValueAtTime(f, now + i*0.1);
+        g2.gain.setValueAtTime(0.16, now + i*0.1); g2.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 0.12);
+        o2.start(now + i*0.1); o2.stop(now + i*0.1 + 0.12);
+      });
+    } else if (type === 'win') {
+      [523, 659, 784, 1047].forEach((f, i) => {
+        const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type = 'sine'; o2.frequency.setValueAtTime(f, now + i*0.12);
+        g2.gain.setValueAtTime(0.22, now + i*0.12); g2.gain.exponentialRampToValueAtTime(0.001, now + i*0.12 + 0.2);
+        o2.start(now + i*0.12); o2.stop(now + i*0.12 + 0.2);
+      });
+    } else if (type === 'undo') {
+      osc.type = 'sine'; osc.frequency.setValueAtTime(500, now);
+      osc.frequency.exponentialRampToValueAtTime(350, now + 0.1);
+      gain.gain.setValueAtTime(0.12, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'ach') {
+      [880, 1100].forEach((f, i) => {
+        const o2 = ctx.createOscillator(); const g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.type = 'sine'; o2.frequency.setValueAtTime(f, now + i*0.08);
+        g2.gain.setValueAtTime(0.15, now + i*0.08); g2.gain.exponentialRampToValueAtTime(0.001, now + i*0.08 + 0.1);
+        o2.start(now + i*0.08); o2.stop(now + i*0.08 + 0.1);
+      });
+    }
+  } catch(e) {}
+}
+
+// ═══════════════════════════════════════════════════════
+//  TIMER
+// ═══════════════════════════════════════════════════════
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(sec).padStart(2,'0');
+}
+
+function startTimer() {
+  stopTimer();
+  G.timerID = setInterval(() => {
+    if (!G.won && !G.paused) {
+      G.seconds++;
+      document.getElementById('timer-val').textContent = fmtTime(G.seconds);
+      saveState();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (G.timerID) { clearInterval(G.timerID); G.timerID = null; }
+}
+
+// ── Tab-blur auto-pause ──────────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && G.started && !G.won && !G.paused) {
+    setPaused(true);
+  }
+});
+
+function setPaused(p) {
+  if (!G.started || G.won) return;
+  G.paused = p;
+  const veil = document.getElementById('pause-veil');
+  const btn  = document.getElementById('btn-pause');
+  if (p) {
+    veil.classList.add('show');
+    btn.textContent = '▶';
+    btn.title = 'Resume (P)';
+  } else {
+    veil.classList.remove('show');
+    btn.textContent = '⏸';
+    btn.title = 'Pause (P)';
+  }
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════
+//  UNDO
+// ═══════════════════════════════════════════════════════
+const UNDO_MAX = 30;
+
+function pushUndo(idx) {
+  const snap = {
+    idx,
+    board: [...G.board],
+    notes: G.notes.map(s => new Set(s)),
+    mistakes: G.mistakes,
+  };
+  G.undoStack.push(snap);
+  if (G.undoStack.length > UNDO_MAX) G.undoStack.shift();
+}
+
+function undoMove() {
+  if (G.undoStack.length === 0 || G.won) return;
+  const snap = G.undoStack.pop();
+  G.board    = snap.board;
+  G.notes    = snap.notes;
+  G.mistakes = snap.mistakes;
+  document.getElementById('mistake-val').textContent = G.mistakes;
+  renderAll();
+  playTone('undo');
+  saveState();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER
+// ═══════════════════════════════════════════════════════
+function buildGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 81; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.setAttribute('role', 'gridcell');
+    cell.setAttribute('tabindex', '0');
+    const r = row(i) + 1, c = col(i) + 1;
+    cell.classList.add('row' + r, 'col' + c);
+    cell.dataset.idx = i;
+    cell.addEventListener('click',  () => selectCell(i));
+    cell.addEventListener('keydown', e => onCellKey(e, i));
+    grid.appendChild(cell);
+  }
+}
+
+function renderCell(i) {
+  const cell = document.querySelector(`.cell[data-idx="${i}"]`);
+  if (!cell) return;
+  cell.innerHTML = '';
+  cell.classList.remove('is-given','is-player','is-error');
+  if (G.givens[i]) {
+    cell.classList.add('is-given');
+    cell.textContent = G.puzzle[i];
+  } else {
+    const val = G.board[i];
+    const hasNotes = G.notes[i].size > 0;
+    if (val > 0) {
+      const isErr = (val !== G.solution[i]);
+      cell.classList.add(isErr ? 'is-error' : 'is-player');
+      cell.textContent = val;
+    } else if (hasNotes) {
+      renderNotes(cell, G.notes[i]);
+    }
+  }
+  const ariaVal = G.givens[i] ? G.puzzle[i] : (G.board[i] || '');
+  cell.setAttribute('aria-label', `Row ${row(i)+1} Col ${col(i)+1}${ariaVal ? ', '+ariaVal : ', empty'}`);
+}
+
+function renderNotes(cell, notesSet) {
+  const grid = document.createElement('div');
+  grid.className = 'notes-grid';
+  for (let n = 1; n <= 9; n++) {
+    const span = document.createElement('span');
+    span.textContent = notesSet.has(n) ? n : '';
+    grid.appendChild(span);
+  }
+  cell.appendChild(grid);
+}
+
+function renderAll() {
+  for (let i = 0; i < 81; i++) renderCell(i);
+  applyHighlights();
+  updateHUD();
+  updateNumpadCompletion();
+}
+
+function applyHighlights() {
+  const cells = document.querySelectorAll('.cell');
+  cells.forEach(c => c.classList.remove('hl-selected','hl-peer','hl-same','hl-conflict'));
+  const sel = G.selected;
+  if (sel < 0) return;
+  const selDigit = G.givens[sel] ? G.puzzle[sel] : G.board[sel];
+  cells.forEach(c => {
+    const i = +c.dataset.idx;
+    if (i === sel) {
+      c.classList.add('hl-selected');
+    } else if (PEERS[sel].includes(i)) {
+      c.classList.add('hl-peer');
+      const iDigit = G.givens[i] ? G.puzzle[i] : G.board[i];
+      if (selDigit && iDigit === selDigit) c.classList.add('hl-conflict');
+    } else if (selDigit) {
+      const iDigit = G.givens[i] ? G.puzzle[i] : G.board[i];
+      if (iDigit === selDigit) c.classList.add('hl-same');
+    }
+  });
+}
+
+function updateHUD() {
+  document.getElementById('mistake-val').textContent = G.mistakes;
+  const bestKey = NS + 'best_' + G.difficulty;
+  const best = localStorage.getItem(bestKey);
+  document.getElementById('best-val').textContent = best ? fmtTime(+best) : '--:--';
+  document.getElementById('timer-val').textContent = fmtTime(G.seconds);
+}
+
+function updateNumpadCompletion() {
+  for (let n = 1; n <= 9; n++) {
+    const btn = document.querySelector(`.num-btn[data-n="${n}"]`);
+    if (!btn) continue;
+    let count = 0;
+    for (let i = 0; i < 81; i++) {
+      const v = G.givens[i] ? G.puzzle[i] : G.board[i];
+      if (v === n) count++;
+    }
+    btn.classList.toggle('completed', count >= 9);
+  }
+}
+
+function updateDiffButtons() {
+  document.querySelectorAll('.diff-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.diff === G.difficulty);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════
+let toastTimer = null;
+function showToast(msg, dur) {
+  dur = dur || 2400;
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), dur);
+}
+
+// ═══════════════════════════════════════════════════════
+//  ACHIEVEMENTS
+// ═══════════════════════════════════════════════════════
+function checkAchievements(hintsThisGame, mistakesThisGame) {
+  const unlocked = [];
+  const prev = new Set(profile.achievements);
+
+  const tryUnlock = id => {
+    if (!prev.has(id)) { unlocked.push(id); profile.achievements.push(id); }
+  };
+
+  if (profile.totalSolved >= 1) tryUnlock('first_solve');
+  if (mistakesThisGame === 0) tryUnlock('zero_mistakes');
+  if (hintsThisGame === 0) tryUnlock('no_hints');
+  if (G.difficulty === 'hard') tryUnlock('hard_solve');
+  if (profile.totalSolved >= 10) tryUnlock('ten_puzzles');
+  if (G.difficulty === 'easy' && G.seconds < 180) tryUnlock('speed_easy');
+  if (profile.currentStreak >= 3) tryUnlock('streak3');
+
+  if (unlocked.length > 0) {
+    saveProfile(profile);
+    unlocked.forEach((id, idx) => {
+      const def = ACHIEVEMENTS_DEF.find(a => a.id === id);
+      if (def) {
+        setTimeout(() => {
+          showToast(def.icon + ' Achievement: ' + def.name, 3000);
+          playTone('ach');
+        }, idx * 1200);
+      }
+    });
+  }
+  return unlocked;
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAME ACTIONS
+// ═══════════════════════════════════════════════════════
+function selectCell(i) {
+  if (G.paused) { setPaused(false); return; }
+  G.selected = i;
+  applyHighlights();
+}
+
+function enterDigit(n) {
+  if (G.paused) { setPaused(false); return; }
+  const i = G.selected;
+  if (i < 0 || G.givens[i] || G.won) return;
+  if (!G.started) { G.started = true; startTimer(); }
+
+  if (G.notesMode) {
+    pushUndo(i);
+    G.board[i] = 0;
+    if (G.notes[i].has(n)) G.notes[i].delete(n);
+    else G.notes[i].add(n);
+    playTone('note');
+    renderCell(i);
+    applyHighlights();
+    saveState();
+    return;
+  }
+
+  G.notes[i].clear();
+  if (G.board[i] === n) return;
+
+  pushUndo(i);
+  G.board[i] = n;
+
+  if (n !== G.solution[i]) {
+    G.mistakes++;
+    document.getElementById('mistake-val').textContent = G.mistakes;
+    renderCell(i);
+    const cell = document.querySelector(`.cell[data-idx="${i}"]`);
+    playTone('error');
+    cell.classList.add('anim-shake');
+    cell.addEventListener('animationend', () => cell.classList.remove('anim-shake'), {once:true});
+  } else {
+    PEERS[i].forEach(p => { if (G.notes[p].has(n)) { G.notes[p].delete(n); renderCell(p); } });
+    renderCell(i);
+    playTone('place');
+    const cell = document.querySelector(`.cell[data-idx="${i}"]`);
+    cell.classList.add('anim-pop');
+    cell.addEventListener('animationend', () => cell.classList.remove('anim-pop'), {once:true});
+  }
+
+  applyHighlights();
+  updateNumpadCompletion();
+  saveState();
+  checkWin();
+}
+
+function eraseCell() {
+  if (G.paused) return;
+  const i = G.selected;
+  if (i < 0 || G.givens[i] || G.won) return;
+  if (G.board[i] === 0 && G.notes[i].size === 0) return;
+  pushUndo(i);
+  G.board[i] = 0;
+  G.notes[i].clear();
+  playTone('erase');
+  renderCell(i);
+  applyHighlights();
+  updateNumpadCompletion();
+  saveState();
+}
+
+function giveHint() {
+  if (G.paused || G.won) return;
+  const candidates = [];
+  for (let i = 0; i < 81; i++) {
+    if (!G.givens[i] && G.board[i] !== G.solution[i]) candidates.push(i);
+  }
+  if (candidates.length === 0) return;
+  if (!G.started) { G.started = true; startTimer(); }
+  const i = candidates[Math.floor(Math.random() * candidates.length)];
+  pushUndo(i);
+  G.board[i] = G.solution[i];
+  G.notes[i].clear();
+  G.hintsUsed++;
+  PEERS[i].forEach(p => { if (G.notes[p].has(G.solution[i])) { G.notes[p].delete(G.solution[i]); renderCell(p); } });
+  playTone('hint');
+  const cell = document.querySelector(`.cell[data-idx="${i}"]`);
+  cell.classList.add('anim-pop');
+  cell.addEventListener('animationend', () => cell.classList.remove('anim-pop'), {once:true});
+  renderCell(i);
+  applyHighlights();
+  updateNumpadCompletion();
+  saveState();
+  checkWin();
+}
+
+function checkPuzzle() {
+  if (G.paused) return;
+  let hasError = false;
+  for (let i = 0; i < 81; i++) {
+    if (!G.givens[i] && G.board[i] > 0 && G.board[i] !== G.solution[i]) {
+      renderCell(i);
+      hasError = true;
+    }
+  }
+  if (hasError) playTone('error');
+  applyHighlights();
+}
+
+function checkWin() {
+  for (let i = 0; i < 81; i++) {
+    const v = G.givens[i] ? G.puzzle[i] : G.board[i];
+    if (v !== G.solution[i]) return;
+  }
+  G.won = true;
+  stopTimer();
+  playTone('win');
+
+  // Update profile stats
+  const diff = G.difficulty;
+  const mistakesThisGame = G.mistakes;
+  const hintsThisGame = G.hintsUsed;
+  profile.totalSolved++;
+  profile.totalMistakes += mistakesThisGame;
+  profile.totalHints += hintsThisGame;
+  profile.totalSeconds += G.seconds;
+
+  const pd = profile.perDiff[diff];
+  pd.solved++;
+  pd.totalSeconds += G.seconds;
+  pd.totalMistakes += mistakesThisGame;
+  if (pd.bestSeconds === null || G.seconds < pd.bestSeconds) pd.bestSeconds = G.seconds;
+
+  // Streak
+  const today = new Date().toDateString();
+  if (profile.lastSolveDate !== today) {
+    profile.currentStreak++;
+    profile.lastSolveDate = today;
+    if (profile.currentStreak > profile.bestStreak) profile.bestStreak = profile.currentStreak;
+  }
+
+  saveProfile(profile);
+
+  // GameShell: submit a higher-is-better score for this solve (per shell difficulty).
+  // Base 5000; lose 2 per second and 100 per mistake. Faster + cleaner => higher score.
+  if (window.GameShell && typeof GameShell.submitScore === 'function') {
+    try {
+      const gsScore = Math.max(0, 5000 - G.seconds * 2 - mistakesThisGame * 100);
+      GameShell.submitScore(gsScore, { difficulty: gsDiffToShell(diff) });
+    } catch(e) {}
+  }
+
+  // Best time (namespaced key)
+  const bestKey = NS + 'best_' + diff;
+  const prev = localStorage.getItem(bestKey);
+  if (!prev || G.seconds < +prev) {
+    localStorage.setItem(bestKey, G.seconds);
+    document.getElementById('win-best-msg').textContent = '⭐ New best time!';
+  } else {
+    document.getElementById('win-best-msg').textContent = 'Best: ' + fmtTime(+prev);
+  }
+
+  // Achievements
+  const newAch = checkAchievements(hintsThisGame, mistakesThisGame);
+  if (newAch.length > 0) {
+    const defs = newAch.map(id => ACHIEVEMENTS_DEF.find(a => a.id === id)).filter(Boolean);
+    document.getElementById('win-achievements').textContent = defs.map(d => d.icon + ' ' + d.name).join('  ');
+  } else {
+    document.getElementById('win-achievements').textContent = '';
+  }
+
+  showWinOverlay();
+  launchConfetti();
+  saveState();
+}
+
+function showWinOverlay() {
+  document.getElementById('win-time').textContent = fmtTime(G.seconds);
+  document.getElementById('win-mistakes').textContent = G.mistakes;
+  document.getElementById('win-diff-label').textContent = G.difficulty.charAt(0).toUpperCase() + G.difficulty.slice(1) + ' Puzzle';
+  document.getElementById('win-overlay').classList.add('show');
+}
+
+// ═══════════════════════════════════════════════════════
+//  NEW GAME
+// ═══════════════════════════════════════════════════════
+function newGame(diff) {
+  stopTimer();
+  G.difficulty = diff || G.difficulty;
+  G.selected   = -1;
+  G.mistakes   = 0;
+  G.seconds    = 0;
+  G.won        = false;
+  G.notesMode  = false;
+  G.started    = false;
+  G.paused     = false;
+  G.hintsUsed  = 0;
+  G.board      = new Array(81).fill(0);
+  G.notes      = Array.from({length:81}, () => new Set());
+  G.undoStack  = [];
+
+  rng = mulberry32(Date.now() ^ Math.floor(Math.random() * 0x7fffffff));
+
+  const {puzzle, solution} = generatePuzzle(G.difficulty);
+  G.puzzle    = puzzle;
+  G.solution  = solution;
+  G.givens    = puzzle.map(v => v > 0);
+
+  document.getElementById('btn-notes').classList.remove('active');
+  document.getElementById('win-overlay').classList.remove('show');
+  document.getElementById('pause-veil').classList.remove('show');
+  document.getElementById('btn-pause').textContent = '⏸';
+  updateDiffButtons();
+  renderAll();
+  saveState();
+
+  // GameShell: fresh puzzle -> refill hints. puzzleId = the given clues (stable per board).
+  if (window.GameShell && typeof GameShell.newGame === 'function') {
+    try { GameShell.newGame(G.difficulty + ':' + G.puzzle.join('')); } catch(e) {}
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PERSISTENCE (versioned, namespaced)
+// ═══════════════════════════════════════════════════════
+function saveState() {
+  try {
+    const state = {
+      version:    SAVE_VERSION,
+      puzzle:     G.puzzle,
+      solution:   G.solution,
+      board:      G.board,
+      notes:      G.notes.map(s => [...s]),
+      givens:     G.givens,
+      difficulty: G.difficulty,
+      mistakes:   G.mistakes,
+      seconds:    G.seconds,
+      won:        G.won,
+      notesMode:  G.notesMode,
+      started:    G.started,
+      paused:     G.paused,
+      hintsUsed:  G.hintsUsed,
+    };
+    localStorage.setItem(NS + 'state', JSON.stringify(state));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    // Check legacy key too
+    let raw = localStorage.getItem(NS + 'state');
+    if (!raw) raw = localStorage.getItem('sudoku_state'); // migrate from old key
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+
+    // Version migration
+    const ver = s.version || 1;
+    if (ver < SAVE_VERSION) {
+      // v1 -> v2: add hintsUsed, paused
+      s.hintsUsed = 0;
+      s.paused    = false;
+    }
+
+    G.puzzle     = s.puzzle;
+    G.solution   = s.solution;
+    G.board      = s.board;
+    G.notes      = s.notes.map(arr => new Set(arr));
+    G.givens     = s.givens;
+    G.difficulty = s.difficulty || 'easy';
+    G.mistakes   = s.mistakes  || 0;
+    G.seconds    = s.seconds   || 0;
+    G.won        = s.won       || false;
+    G.notesMode  = s.notesMode || false;
+    G.started    = s.started   || false;
+    G.paused     = s.paused    || false;
+    G.hintsUsed  = s.hintsUsed || 0;
+    G.undoStack  = [];
+    return true;
+  } catch(e) { return false; }
+}
+
+// ═══════════════════════════════════════════════════════
+//  KEYBOARD HANDLING
+// ═══════════════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.target.id === 'win-play-again') return;
+  const key = e.key;
+
+  // Ctrl+Z undo
+  if ((e.ctrlKey || e.metaKey) && key === 'z') { e.preventDefault(); undoMove(); return; }
+
+  if (key >= '1' && key <= '9') { e.preventDefault(); enterDigit(+key); }
+  else if (key === 'Delete' || key === 'Backspace' || key === '0') { e.preventDefault(); eraseCell(); }
+  else if (key === 'n' || key === 'N') { e.preventDefault(); toggleNotes(); }
+  else if (key === 'p' || key === 'P' || key === 'Escape') { e.preventDefault(); if (G.started && !G.won) setPaused(!G.paused); }
+  else if (key === 'u' || key === 'U') { e.preventDefault(); undoMove(); }
+  else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)) { e.preventDefault(); moveSelection(key); }
+});
+
+function onCellKey(e, i) {
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); selectCell(i); }
+}
+
+function moveSelection(dir) {
+  if (G.paused) return;
+  let i = G.selected < 0 ? 0 : G.selected;
+  const r = row(i), c = col(i);
+  if (dir === 'ArrowUp')    i = r > 0 ? i - 9 : i;
+  if (dir === 'ArrowDown')  i = r < 8 ? i + 9 : i;
+  if (dir === 'ArrowLeft')  i = c > 0 ? i - 1 : i;
+  if (dir === 'ArrowRight') i = c < 8 ? i + 1 : i;
+  selectCell(i);
+}
+
+function toggleNotes() {
+  if (G.paused) return;
+  G.notesMode = !G.notesMode;
+  document.getElementById('btn-notes').classList.toggle('active', G.notesMode);
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFETTI (prefers-reduced-motion aware)
+// ═══════════════════════════════════════════════════════
+function launchConfetti() {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const pieces = [];
+  const colors = ['#ef4444','#3b82f6','#22c55e','#f59e0b','#a855f7','#ec4899','#06b6d4'];
+  for (let i = 0; i < 80; i++) {
+    pieces.push({
+      x: Math.random() * canvas.width, y: Math.random() * canvas.height - canvas.height,
+      w: Math.random() * 10 + 5, h: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 4, vy: Math.random() * 3 + 2,
+      rot: Math.random() * 360, vrot: (Math.random() - 0.5) * 8,
+      alpha: 1
+    });
+  }
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vrot;
+      if (frame > 90) p.alpha -= 0.015;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, p.alpha);
+      ctx.translate(p.x + p.w/2, p.y + p.h/2);
+      ctx.rotate(p.rot * Math.PI/180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (frame < 160) requestAnimationFrame(draw);
+    else ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROFILE MODAL
+// ═══════════════════════════════════════════════════════
+function openProfile() {
+  refreshProfileModal();
+  document.getElementById('profile-modal').classList.add('show');
+}
+function closeProfile() {
+  document.getElementById('profile-modal').classList.remove('show');
+}
+
+function refreshProfileModal() {
+  document.getElementById('profile-name-input').value = profile.name;
+  document.getElementById('streak-current').textContent = profile.currentStreak;
+  document.getElementById('streak-best').textContent    = profile.bestStreak;
+  document.getElementById('stat-total-solved').textContent   = profile.totalSolved;
+  document.getElementById('stat-total-hints').textContent    = profile.totalHints;
+  document.getElementById('stat-total-mistakes').textContent = profile.totalMistakes;
+  const hrs = (profile.totalSeconds / 3600).toFixed(1);
+  document.getElementById('stat-total-time').textContent = hrs + 'h';
+
+  // Per-difficulty
+  const wrap = document.getElementById('diff-stats-wrap');
+  wrap.innerHTML = '';
+  ['easy','medium','hard'].forEach(d => {
+    const pd = profile.perDiff[d];
+    const avg = pd.solved > 0 ? fmtTime(Math.round(pd.totalSeconds / pd.solved)) : '--:--';
+    const best = pd.bestSeconds !== null ? fmtTime(pd.bestSeconds) : '--:--';
+    const label = d.charAt(0).toUpperCase() + d.slice(1);
+    wrap.innerHTML += `<div class="diff-stats-row">
+      <div class="diff-stat-cell"><div class="dsv">${pd.solved}</div><div class="dsl">${label} Solved</div></div>
+      <div class="diff-stat-cell"><div class="dsv">${best}</div><div class="dsl">Best</div></div>
+      <div class="diff-stat-cell"><div class="dsv">${avg}</div><div class="dsl">Avg</div></div>
+    </div>`;
+  });
+
+  // Achievements
+  const list = document.getElementById('ach-list');
+  list.innerHTML = '';
+  ACHIEVEMENTS_DEF.forEach(def => {
+    const unlocked = profile.achievements.includes(def.id);
+    const li = document.createElement('li');
+    if (!unlocked) li.classList.add('locked');
+    li.innerHTML = `<span class="ach-icon">${def.icon}</span><div><div class="ach-name">${def.name}</div><div class="ach-desc">${def.desc}</div></div>`;
+    list.appendChild(li);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+function buildNumpad() {
+  const pad = document.getElementById('numpad');
+  for (let n = 1; n <= 9; n++) {
+    const btn = document.createElement('button');
+    btn.className = 'num-btn';
+    btn.textContent = n;
+    btn.dataset.n = n;
+    btn.setAttribute('aria-label', 'Enter ' + n);
+    btn.addEventListener('click', () => enterDigit(n));
+    pad.appendChild(btn);
+  }
+}
+
+function init() {
+  buildGrid();
+  buildNumpad();
+
+  // Dark mode
+  G.dark = localStorage.getItem(NS + 'dark') === '1' || localStorage.getItem('sudoku_dark') === '1';
+  if (G.dark) document.documentElement.setAttribute('data-dark','');
+  document.getElementById('btn-dark').textContent = G.dark ? '☀️' : '🌙';
+
+  // Mute
+  G.muted = localStorage.getItem(NS + 'muted') === '1' || localStorage.getItem('sudoku_muted') === '1';
+  document.getElementById('btn-mute').textContent = G.muted ? '🔇' : '🔊';
+
+  // Load or start
+  const restored = loadState();
+  if (restored) {
+    updateDiffButtons();
+    renderAll();
+    if (G.started && !G.won) {
+      startTimer();
+      if (G.paused) document.getElementById('pause-veil').classList.add('show');
+    }
+    // keep the shell's stored difficulty in sync with the restored game
+    gsPushDifficulty(G.difficulty);
+  } else {
+    // No saved game: start at the GameShell difficulty if present (default 'normal'
+    // -> medium). Without GameShell, fall back to the original 'easy' default.
+    var bootDiff = 'easy';
+    if (window.GameShell && typeof GameShell.getDifficulty === 'function') {
+      bootDiff = gsShellToDiff(GameShell.getDifficulty());
+    }
+    newGame(bootDiff);
+  }
+
+  // Difficulty buttons
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.diff !== G.difficulty || G.won) {
+        gsPushDifficulty(btn.dataset.diff);   // bridge game -> GameShell difficulty
+        newGame(btn.dataset.diff);
+      }
+    });
+  });
+
+  // Action buttons
+  document.getElementById('btn-erase').addEventListener('click', eraseCell);
+  document.getElementById('btn-notes').addEventListener('click', toggleNotes);
+  document.getElementById('btn-hint').addEventListener('click', giveHint);
+  document.getElementById('btn-check').addEventListener('click', checkPuzzle);
+  document.getElementById('btn-new').addEventListener('click', () => {
+    if (!G.won && G.started) {
+      if (!confirm('Start a new game? Current progress will be lost.')) return;
+    }
+    newGame();
+  });
+
+  document.getElementById('btn-undo').addEventListener('click', undoMove);
+
+  document.getElementById('btn-pause').addEventListener('click', () => {
+    if (G.started && !G.won) setPaused(!G.paused);
+  });
+  document.getElementById('btn-resume').addEventListener('click', () => setPaused(false));
+
+  document.getElementById('win-play-again').addEventListener('click', () => {
+    document.getElementById('win-overlay').classList.remove('show');
+    newGame();
+  });
+
+  document.getElementById('btn-mute').addEventListener('click', () => {
+    G.muted = !G.muted;
+    localStorage.setItem(NS + 'muted', G.muted ? '1' : '0');
+    document.getElementById('btn-mute').textContent = G.muted ? '🔇' : '🔊';
+  });
+
+  document.getElementById('btn-dark').addEventListener('click', () => {
+    G.dark = !G.dark;
+    localStorage.setItem(NS + 'dark', G.dark ? '1' : '0');
+    if (G.dark) document.documentElement.setAttribute('data-dark','');
+    else document.documentElement.removeAttribute('data-dark');
+    document.getElementById('btn-dark').textContent = G.dark ? '☀️' : '🌙';
+  });
+
+  document.getElementById('win-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('win-overlay')) {
+      document.getElementById('win-overlay').classList.remove('show');
+    }
+  });
+
+  // Profile
+  document.getElementById('title-btn').addEventListener('click', openProfile);
+  document.getElementById('profile-close').addEventListener('click', closeProfile);
+  document.getElementById('profile-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('profile-modal')) closeProfile();
+  });
+  document.getElementById('profile-name-save').addEventListener('click', () => {
+    const val = document.getElementById('profile-name-input').value.trim();
+    if (val) { profile.name = val; saveProfile(profile); showToast('Name saved!'); }
+  });
+  document.getElementById('profile-name-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('profile-name-save').click();
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  GAMESHELL DEEP INTEGRATION
+//  - Difficulty bridge: shell easy<->easy, normal<->medium (current default),
+//    hard<->hard. Mapping is bidirectional with a re-entrancy guard.
+//  - Score: higher-is-better proxy submitted on solve (see checkWin).
+//  - Real hint: reveal the CORRECT value of the most-constrained empty cell,
+//    read straight from the stored solution (G.solution).
+//  - newGame(): called on every fresh puzzle to refill hints (see newGame).
+//  All calls guarded; standalone behaviour (no GameShell) is unchanged.
+// ═══════════════════════════════════════════════════════
+const GS_DIFF_MAP   = { easy: 'easy', normal: 'medium', hard: 'hard' }; // shell -> internal
+const GS_DIFF_UNMAP = { easy: 'easy', medium: 'normal', hard: 'hard' }; // internal -> shell
+let gsSyncing = false;  // prevents the bidirectional bridge from looping
+
+function gsShellToDiff(shell) { return GS_DIFF_MAP[shell] || 'medium'; }
+function gsDiffToShell(diff)  { return GS_DIFF_UNMAP[diff] || 'normal'; }
+
+// Push the game's internal difficulty up to GameShell (e.g. user tapped Easy/Medium/Hard).
+function gsPushDifficulty(internalDiff) {
+  if (gsSyncing) return;
+  if (!window.GameShell || typeof GameShell.setDifficulty !== 'function') return;
+  const shell = gsDiffToShell(internalDiff);
+  if (typeof GameShell.getDifficulty === 'function' && GameShell.getDifficulty() === shell) return;
+  gsSyncing = true;
+  try { GameShell.setDifficulty(shell); } catch (e) {}
+  gsSyncing = false;
+}
+
+// Apply a shell difficulty down to the game (Settings difficulty segment changed).
+function gsApplyShellDifficulty(shell) {
+  if (gsSyncing) return;                 // change originated from our own push
+  const internal = gsShellToDiff(shell);
+  if (internal === G.difficulty) return; // already there
+  newGame(internal);                     // start a fresh puzzle at the new difficulty
+}
+
+// REAL HINT: find the empty cell with the fewest legal candidates and reveal its
+// correct digit from the solution. Falls back to any empty / wrong cell.
+function gsCandidates(i) {
+  const used = new Set();
+  PEERS[i].forEach(p => {
+    const v = G.givens[p] ? G.puzzle[p] : G.board[p];
+    if (v) used.add(v);
+  });
+  let c = 0;
+  for (let n = 1; n <= 9; n++) if (!used.has(n)) c++;
+  return c;
+}
+function gsHintText() {
+  if (G.won) return 'Puzzle already solved — start a new one!';
+  let target = -1, fewest = 99;
+  // prefer truly empty cells, ranked by how few digits can legally go there
+  for (let i = 0; i < 81; i++) {
+    if (G.givens[i] || G.board[i] !== 0) continue;
+    const cand = gsCandidates(i);
+    if (cand < fewest) { fewest = cand; target = i; if (cand <= 1) break; }
+  }
+  // if the grid is fully filled but wrong somewhere, point at a wrong cell instead
+  if (target < 0) {
+    for (let i = 0; i < 81; i++) {
+      if (!G.givens[i] && G.board[i] !== G.solution[i]) { target = i; break; }
+    }
+  }
+  if (target < 0) return 'Every cell is filled correctly — tap Check to confirm!';
+  const r = row(target) + 1, c = col(target) + 1, val = G.solution[target];
+  const wrong = (G.board[target] !== 0 && G.board[target] !== val);
+  return 'Cell R' + r + 'C' + c + ' is a ' + val + '.' +
+         (wrong ? ' (Currently ' + G.board[target] + ' — fix it.)' : '');
+}
+
+// Wire up GameShell once it's available.
+if (window.GameShell) {
+  if (typeof GameShell.onHint === 'function')        GameShell.onHint(function () { return gsHintText(); });
+  if (typeof GameShell.onDifficulty === 'function')  GameShell.onDifficulty(function (shell) { gsApplyShellDifficulty(shell); });
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+</script>
+</body>
+</html>

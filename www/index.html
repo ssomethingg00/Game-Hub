@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0e0b1e">
+<title>🎮 Game Hub</title>
+<style>
+  :root{
+    --bg1:#0e0b1e; --bg2:#171232; --bg3:#241a4d;
+    --card:#1b1638; --card2:#221a47;
+    --line:rgba(255,255,255,.08);
+    --txt:#f3f1ff; --mut:#a79fd6; --mut2:#7d75ad;
+    --accent:#7c5cff; --accent2:#22d3ee;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+    --r:18px;
+    /* category colors */
+    --c-idle:#ffb020; --c-arcade:#22d3ee; --c-puzzle:#a78bfa;
+    --c-word:#34d399; --c-card:#fb7185; --c-board:#60a5fa; --c-skill:#fbbf24;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;width:100%;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #2a1f57 0%, transparent 55%),
+      radial-gradient(1000px 500px at 110% 10%, #15324a 0%, transparent 50%),
+      linear-gradient(160deg,var(--bg1),var(--bg2) 55%,var(--bg3));
+    background-attachment:fixed;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    position:sticky;top:0;z-index:40;
+    backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(14,11,30,.92),rgba(14,11,30,.62));
+    border-bottom:1px solid var(--line);
+    padding:calc(14px + env(safe-area-inset-top)) clamp(14px,4vw,40px) 12px;
+  }
+  .brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo{
+    width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+    font-size:26px;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 6px 18px rgba(124,92,255,.45);
+    flex:none;
+  }
+  .brand h1{font-size:clamp(20px,4.5vw,30px);margin:0;letter-spacing:.3px;font-weight:800}
+  .brand .sub{margin:2px 0 0;color:var(--mut);font-size:13px}
+  .count-pill{
+    margin-left:auto;font-size:12px;color:var(--mut);
+    border:1px solid var(--line);border-radius:999px;padding:6px 12px;white-space:nowrap;
+    background:rgba(255,255,255,.03)
+  }
+
+  /* search */
+  .searchwrap{position:relative;margin-top:14px}
+  .searchwrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.6}
+  #search{
+    width:100%;padding:13px 44px 13px 42px;border-radius:14px;border:1px solid var(--line);
+    background:rgba(255,255,255,.05);color:var(--txt);font-size:16px;outline:none;
+    transition:border-color .2s, background .2s;
+  }
+  #search:focus{border-color:var(--accent);background:rgba(124,92,255,.10)}
+  #search::placeholder{color:var(--mut2)}
+  .clearbtn{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    border:none;background:transparent;color:var(--mut);font-size:20px;cursor:pointer;
+    width:34px;height:34px;border-radius:10px;display:none;
+  }
+  .clearbtn:hover{background:rgba(255,255,255,.08);color:var(--txt)}
+
+  /* category chips */
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:14px 0 2px;margin-top:2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:none;border:1px solid var(--line);background:rgba(255,255,255,.04);
+    color:var(--mut);padding:8px 14px;border-radius:999px;font-size:13.5px;cursor:pointer;
+    transition:all .18s;white-space:nowrap;font-weight:600;
+  }
+  .chip:hover{color:var(--txt);border-color:rgba(255,255,255,.25)}
+  .chip.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent;box-shadow:0 4px 14px rgba(124,92,255,.4)}
+  .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+
+  /* ---------- Main / grid ---------- */
+  main{padding:18px clamp(14px,4vw,40px) 60px}
+  .section-label{
+    display:flex;align-items:center;gap:10px;margin:22px 2px 12px;
+    font-size:13px;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);font-weight:700;
+  }
+  .section-label::after{content:"";flex:1;height:1px;background:var(--line)}
+  .section-label .ico{font-size:16px}
+
+  .grid{
+    display:grid;gap:14px;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  }
+  .card{
+    position:relative;border:1px solid var(--line);border-radius:var(--r);
+    background:linear-gradient(160deg,var(--card),var(--card2));
+    padding:16px 14px 14px;cursor:pointer;overflow:hidden;
+    transition:transform .16s ease, border-color .16s, box-shadow .16s;
+    display:flex;flex-direction:column;gap:10px;min-height:132px;
+  }
+  .card::before{
+    content:"";position:absolute;inset:0 0 auto 0;height:3px;
+    background:var(--cat,var(--accent));opacity:.9;
+  }
+  .card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.22);box-shadow:var(--shadow)}
+  .card:active{transform:translateY(-1px) scale(.99)}
+  .card .emoji{font-size:38px;line-height:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4))}
+  .card .name{font-weight:700;font-size:15px;line-height:1.25}
+  .card .meta{display:flex;align-items:center;gap:6px;margin-top:auto}
+  .card .tag{
+    font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;
+    color:var(--cat,var(--accent));background:color-mix(in srgb,var(--cat,var(--accent)) 16%, transparent);
+  }
+  /* favorite star */
+  .fav{
+    position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:10px;
+    border:none;background:rgba(0,0,0,.25);color:var(--mut);font-size:16px;cursor:pointer;
+    display:grid;place-items:center;transition:all .15s;z-index:2;
+  }
+  .fav:hover{background:rgba(0,0,0,.45);transform:scale(1.1)}
+  .fav.on{color:#ffd54a}
+
+  .empty{text-align:center;color:var(--mut);padding:60px 20px;font-size:16px;display:none}
+  .empty .big{font-size:48px;margin-bottom:10px}
+
+  /* ---------- Player overlay ---------- */
+  .player{
+    position:fixed;inset:0;z-index:100;background:#06040f;
+    display:none;flex-direction:column;
+  }
+  .player.open{display:flex}
+  .pbar{
+    position:absolute;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:101;
+    display:flex;align-items:center;background:rgba(18,13,40,0.7);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid rgba(255,255,255,0.12);border-radius:20px;
+    padding:2px 4px;height:38px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.3);
+    opacity:0.45;transition:opacity 0.2s ease-in-out, background-color 0.2s;
+  }
+  .pbar:hover, .pbar:focus-within, .pbar:active {
+    opacity:1;
+    background:rgba(18,13,40,0.85);
+    border-color:rgba(255,255,255,0.22);
+  }
+  .pbar .ptitle, .pbar .spacer{display:none}
+  .pbtn{
+    border:none;background:transparent;color:#fff;
+    width:32px;height:32px;border-radius:16px;cursor:pointer;
+    display:grid;place-items:center;font-size:16px;
+    transition:all .15s;flex:none;opacity:0.85;
+  }
+  .pbtn:hover{background:rgba(255,255,255,.12);opacity:1}
+  .pbtn.close{background:transparent;border-color:transparent;color:#fda4af;width:32px;padding:0;display:grid;place-items:center;}
+  .pbtn.close:hover{background:rgba(251,113,133,.2);color:#fff}
+  .pbtn .lbl{display:none}
+  .pbar-divider{width:1px;height:16px;background:rgba(255,255,255,0.15);margin:0 4px;flex:none}
+  
+  .frame-wrap{flex:1;position:relative;background:#000}
+  #frame{position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000}
+  .ploading{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);gap:14px;text-align:center}
+  .spinner{width:42px;height:42px;border:3px solid rgba(255,255,255,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  footer{text-align:center;color:var(--mut2);font-size:12px;padding:24px 16px 40px}
+
+  @media (max-width:480px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:11px}
+    .card{min-height:122px;padding:14px 12px 12px}
+    .card .emoji{font-size:32px}
+    .card .name{font-size:14px}
+  }
+  
+  /* ---------- Settings Button & Modal ---------- */
+  .settings-btn {
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.05);
+    color: var(--txt);
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    transition: all .15s;
+    margin-left: auto;
+    margin-right: 10px;
+    flex: none;
+  }
+  .settings-btn:hover {
+    background: rgba(255,255,255,.13);
+    border-color: rgba(255,255,255,.3);
+  }
+  .count-pill {
+    margin-left: 0 !important;
+  }
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(6, 4, 15, 0.85);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-content {
+    background: linear-gradient(160deg, var(--card), var(--card2));
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    width: 100%;
+    max-width: 380px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    animation: modalSlide 0.22s ease-out;
+  }
+  @keyframes modalSlide {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--mut);
+    font-size: 20px;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+  }
+  .modal-close:hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--txt);
+  }
+  .modal-body {
+    padding: 20px;
+  }
+  .setting-item {
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .setting-item label {
+    font-size: 13px;
+    color: var(--mut);
+    font-weight: 600;
+  }
+  .setting-item input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: var(--txt);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .setting-item input:focus {
+    border-color: var(--accent);
+  }
+  .current-version-container {
+    font-size: 14px;
+    color: var(--txt);
+    margin-bottom: 20px;
+  }
+  .update-check-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(124,92,255,0.4);
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .update-check-btn:hover {
+    transform: translateY(-2px);
+  }
+  .update-check-btn:active {
+    transform: translateY(0);
+  }
+  .update-check-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+  .action-btn {
+    margin-top: 12px;
+    width: 100%;
+    background: #22c55e;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 11px;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+  }
+  .action-btn:hover {
+    background: #16a34a;
+    transform: translateY(-2px);
+  }
+  .action-btn:active {
+    transform: translateY(0);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">🎮</div>
+    <div>
+      <h1>Game Hub</h1>
+      <p class="sub">Your arcade — all games in one place</p>
+    </div>
+    <button id="btnSettings" class="settings-btn" title="Settings & Updates">⚙️</button>
+    <span class="count-pill" id="countPill">41 games</span>
+  </div>
+
+  <div class="searchwrap">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <input id="search" type="search" placeholder="Search games…" autocomplete="off" spellcheck="false">
+    <button class="clearbtn" id="clearBtn" aria-label="Clear">✕</button>
+  </div>
+
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <div id="board"></div>
+  <div class="empty" id="empty">
+    <div class="big">🕹️</div>
+    No games match your search.
+  </div>
+</main>
+
+<footer>41 single-file games · click any card to play · ★ to favorite</footer>
+
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal" style="display:none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>⚙️ Settings & Updates</h2>
+      <button class="modal-close" id="btnCloseSettings">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="setting-item">
+        <label for="githubOwner">GitHub Owner / Username</label>
+        <input id="githubOwner" type="text" placeholder="e.g. github-username" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="setting-item">
+        <label for="githubRepo">GitHub Repository Name</label>
+        <input id="githubRepo" type="text" placeholder="e.g. game-hub" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="setting-item current-version-container">
+        <span>App Version: <strong id="appVersionText">1.0.0</strong></span>
+      </div>
+      <button class="update-check-btn" id="btnCheckUpdate">Check for Updates</button>
+      
+      <div id="updateStatusContainer" style="display:none; margin-top:15px; padding:12px; border-radius:10px; background:rgba(255,255,255,0.05); font-size:13.5px; line-height:1.4;">
+        <div id="updateStatusText" style="font-weight:600;"></div>
+        <div id="updateDownloadBarContainer" style="display:none; margin-top:8px; height:8px; border-radius:4px; background:rgba(255,255,255,0.1); overflow:hidden;">
+          <div id="updateDownloadBar" style="width:0%; height:100%; background:var(--accent); transition:width 0.1s;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Player overlay -->
+<div class="player" id="player" role="dialog" aria-modal="true">
+  <div class="pbar">
+    <div class="ptitle"><span class="pe" id="pEmoji">🎮</span><span class="pt" id="pTitle">Game</span></div>
+    <div class="spacer"></div>
+    <button class="pbtn" id="btnReload" title="Restart / reload">↻</button>
+    <div class="pbar-divider"></div>
+    <button class="pbtn close" id="btnClose" title="Close">✕<span class="lbl"> Close</span></button>
+  </div>
+  <div class="frame-wrap">
+    <div class="ploading" id="pLoading"><div class="spinner"></div><div>Loading game…</div></div>
+    <iframe id="frame" allow="fullscreen; autoplay; gamepad; accelerometer; gyroscope; clipboard-write" allowfullscreen></iframe>
+  </div>
+</div>
+
+<script>
+/* ---------- Game data (referenced by relative path) ---------- */
+const CATS = {
+  arcade:{label:"Arcade",        icon:"🕹️", color:"var(--c-arcade)"},
+  puzzle:{label:"Puzzle",        icon:"🧩", color:"var(--c-puzzle)"},
+  word:  {label:"Word",          icon:"🔤", color:"var(--c-word)"},
+  card:  {label:"Card & Casino", icon:"🃏", color:"var(--c-card)"},
+  board: {label:"Board & 2-Player",icon:"♟️", color:"var(--c-board)"},
+  skill: {label:"Skill & Fun",   icon:"⚡", color:"var(--c-skill)"},
+};
+
+const GAMES = [
+  {n:11,t:"Snake",               e:"🐍", c:"arcade", f:"11-snake"},
+  {n:12,t:"Brick Breaker",       e:"🧱", c:"arcade", f:"12-brick-breaker"},
+  {n:13,t:"Flappy Bird",         e:"🐦", c:"arcade", f:"13-flappy-bird"},
+  {n:14,t:"Pong",                e:"🏓", c:"arcade", f:"14-pong"},
+  {n:15,t:"Space Shooter",       e:"🚀", c:"arcade", f:"15-space-shooter"},
+  {n:16,t:"Asteroids",           e:"☄️", c:"arcade", f:"16-asteroids"},
+  {n:17,t:"Doodle Jump",         e:"🦘", c:"arcade", f:"17-doodle-jump"},
+  {n:18,t:"Endless Runner",      e:"🏃", c:"arcade", f:"18-endless-runner"},
+  {n:19,t:"Road Crossing",       e:"🐔", c:"arcade", f:"19-road-crossing"},
+  {n:20,t:"Whack-a-Mole",        e:"🔨", c:"arcade", f:"20-whack-a-mole"},
+
+  {n:21,t:"2048",                e:"🔢", c:"puzzle", f:"21-2048"},
+  {n:22,t:"Tetris",              e:"🟦", c:"puzzle", f:"22-tetris"},
+  {n:23,t:"Match-3",             e:"💎", c:"puzzle", f:"23-match-3"},
+  {n:24,t:"Minesweeper",         e:"💣", c:"puzzle", f:"24-minesweeper"},
+  {n:25,t:"Sliding Puzzle",      e:"🧩", c:"puzzle", f:"25-sliding-puzzle"},
+  {n:26,t:"Sudoku",              e:"📝", c:"puzzle", f:"26-sudoku"},
+  {n:27,t:"Memory Card Match",   e:"🃏", c:"puzzle", f:"27-memory-card-match"},
+  {n:28,t:"Tower of Hanoi",      e:"🗼", c:"puzzle", f:"28-tower-of-hanoi"},
+  {n:29,t:"Block Blast",         e:"🟧", c:"puzzle", f:"29-block-blast"},
+  {n:30,t:"Color Flood",         e:"🎨", c:"puzzle", f:"30-color-flood"},
+
+  {n:31,t:"Wordle",              e:"🔤", c:"word",   f:"31-wordle"},
+  {n:32,t:"Hangman",             e:"🪢", c:"word",   f:"32-hangman"},
+  {n:33,t:"Word Search",         e:"🔍", c:"word",   f:"33-word-search"},
+  {n:34,t:"Anagram Scramble",    e:"🔀", c:"word",   f:"34-anagram-scramble"},
+  {n:35,t:"Typing Speed",        e:"⌨️", c:"word",   f:"35-typing-speed"},
+
+  {n:36,t:"Solitaire Klondike",  e:"♠️", c:"card",   f:"36-solitaire-klondike"},
+  {n:37,t:"Blackjack",           e:"🎰", c:"card",   f:"37-blackjack"},
+  {n:38,t:"Memory Flip",         e:"🎴", c:"card",   f:"38-memory-flip"},
+  {n:39,t:"Higher or Lower",     e:"🔼", c:"card",   f:"39-higher-lower"},
+  {n:40,t:"Video Poker",         e:"🃏", c:"card",   f:"40-video-poker"},
+
+  {n:41,t:"Tic-Tac-Toe",         e:"⭕", c:"board",  f:"41-tic-tac-toe"},
+  {n:42,t:"Connect Four",        e:"🔴", c:"board",  f:"42-connect-four"},
+  {n:43,t:"Checkers",            e:"⚫", c:"board",  f:"43-checkers"},
+  {n:44,t:"Reversi / Othello",   e:"⚪", c:"board",  f:"44-reversi-othello"},
+  {n:45,t:"Dots and Boxes",      e:"⬜", c:"board",  f:"45-dots-and-boxes"},
+
+  {n:46,t:"Trivia Quiz",         e:"❓", c:"skill",  f:"46-trivia-quiz"},
+  {n:47,t:"Rock Paper Scissors", e:"✊", c:"skill",  f:"47-rock-paper-scissors"},
+  {n:48,t:"Simon Says",          e:"🎵", c:"skill",  f:"48-simon-says"},
+  {n:49,t:"Maze",                e:"🌀", c:"skill",  f:"49-maze"},
+  {n:50,t:"Reaction Test",       e:"⚡", c:"skill",  f:"50-reaction-test"},
+
+  {n:51,t:"Chess",               e:"♟️", c:"board",  f:"51-chess"},
+];
+GAMES.forEach(g => g.url = g.f + "/" + g.f + ".html");
+
+/* ---------- Persistence ---------- */
+const LS = {
+  favs: "gamehub_favs",
+  recent: "gamehub_recent",
+};
+const load = (k,d)=>{ try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d} };
+const save = (k,v)=>{ try{localStorage.setItem(k,JSON.stringify(v))}catch(e){} };
+let favs = new Set(load(LS.favs,[]));
+let recent = load(LS.recent,[]);
+
+/* ---------- State ---------- */
+let activeCat = "all";
+let query = "";
+
+/* ---------- Build chips ---------- */
+const chipsEl = document.getElementById("chips");
+function buildChips(){
+  const items = [["all","All","🎮","var(--accent)"], ["fav","Favorites","★","#ffd54a"]];
+  for(const k in CATS) items.push([k, CATS[k].label, CATS[k].icon, CATS[k].color]);
+  chipsEl.innerHTML = items.map(([k,l,i,col])=>
+    `<button class="chip ${k===activeCat?'active':''}" data-cat="${k}">
+       <span class="dot" style="background:${col}"></span>${i} ${l}
+     </button>`).join("");
+  chipsEl.querySelectorAll(".chip").forEach(c=>{
+    c.onclick = ()=>{ activeCat = c.dataset.cat; buildChips(); render(); };
+  });
+}
+
+/* ---------- Render board ---------- */
+const board = document.getElementById("board");
+const emptyEl = document.getElementById("empty");
+const countPill = document.getElementById("countPill");
+
+function cardHTML(g){
+  const col = CATS[g.c].color;
+  const on = favs.has(g.n) ? "on" : "";
+  const star = favs.has(g.n) ? "★" : "☆";
+  return `<div class="card" style="--cat:${col}" data-n="${g.n}">
+    <button class="fav ${on}" data-fav="${g.n}" title="Favorite">${star}</button>
+    <div class="emoji">${g.e}</div>
+    <div class="name">${g.t}</div>
+    <div class="meta">
+      <span class="tag">${CATS[g.c].label.split(" ")[0]}</span>
+    </div>
+  </div>`;
+}
+
+function sectionHTML(label, icon, games){
+  if(!games.length) return "";
+  return `<div class="section-label"><span class="ico">${icon}</span>${label}</div>
+          <div class="grid">${games.map(cardHTML).join("")}</div>`;
+}
+
+function matches(g){
+  if(query && !(g.t.toLowerCase().includes(query) || String(g.n)===query)) return false;
+  if(activeCat==="all") return true;
+  if(activeCat==="fav") return favs.has(g.n);
+  return g.c===activeCat;
+}
+
+function render(){
+  const list = GAMES.filter(matches);
+  countPill.textContent = list.length + (list.length===1?" game":" games");
+
+  let html = "";
+
+  // Recently played (only on All view, no search)
+  if(activeCat==="all" && !query){
+    const recentGames = recent.map(n=>GAMES.find(g=>g.n===n)).filter(Boolean).slice(0,6);
+    if(recentGames.length) html += sectionHTML("Recently played","🕒",recentGames);
+  }
+
+  if(activeCat==="all" && !query){
+    // grouped by category
+    for(const k in CATS){
+      html += sectionHTML(CATS[k].label, CATS[k].icon, list.filter(g=>g.c===k));
+    }
+  } else if(activeCat==="fav"){
+    html += list.length ? sectionHTML("Favorites","★",list) : "";
+  } else {
+    // flat grid for a single category or a search
+    html += `<div class="grid">${list.map(cardHTML).join("")}</div>`;
+  }
+
+  board.innerHTML = html;
+  emptyEl.style.display = list.length ? "none" : "block";
+  wireCards();
+}
+
+function wireCards(){
+  board.querySelectorAll(".card").forEach(card=>{
+    const n = +card.dataset.n;
+    card.addEventListener("click", e=>{
+      if(e.target.closest("[data-fav]")) return;
+      openGame(n);
+    });
+  });
+  board.querySelectorAll("[data-fav]").forEach(b=>{
+    b.onclick = e=>{ e.stopPropagation(); toggleFav(+b.dataset.fav); };
+  });
+}
+
+function toggleFav(n){
+  if(favs.has(n)) favs.delete(n); else favs.add(n);
+  save(LS.favs,[...favs]);
+  render();
+}
+
+/* ---------- Player overlay ---------- */
+const player = document.getElementById("player");
+const frame = document.getElementById("frame");
+const pLoading = document.getElementById("pLoading");
+let currentGame = null;
+
+let loadTimer = null;
+const SPINNER_HTML = '<div class="spinner"></div><div>Loading game…</div>';
+
+function startLoad(g){
+  pLoading.innerHTML = SPINNER_HTML;
+  pLoading.style.display = "grid";
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(()=>showLoadFallback(g), 8000);
+  frame.src = g.url;
+}
+
+function openGame(n){
+  const g = GAMES.find(x=>x.n===n); if(!g) return;
+  currentGame = g;
+  recent = [n, ...recent.filter(x=>x!==n)].slice(0,12);
+  save(LS.recent,recent);
+  if(!query && activeCat==="all") render();
+
+  // Set title & emoji in player top bar
+  document.getElementById("pEmoji").textContent = g.e;
+  document.getElementById("pTitle").textContent = g.t;
+
+  // Show player panel fullscreen
+  player.classList.add("open");
+  document.body.style.overflow = "hidden"; // lock scroll on hub
+
+  startLoad(g);
+}
+
+frame.addEventListener("load", ()=>{
+  if(!currentGame) return; // ignore about:blank
+  clearTimeout(loadTimer);
+  pLoading.style.display = "none";
+});
+
+function showLoadFallback(g){
+  pLoading.innerHTML =
+    '<div style="font-size:44px">🚫</div>'+
+    '<div style="max-width:320px;line-height:1.55;color:var(--mut)">This game failed to load inside the app. Please try reloading.</div>'+
+    '<div style="display:flex;gap:10px;justify-content:center;margin-top:10px">'+
+      '<button class="pbtn" style="width:auto;padding:11px 18px" onclick="document.getElementById(\'btnReload\').click()">↻ Reload</button>'+
+    '</div>';
+  pLoading.style.display = "grid";
+}
+
+function closeGame(){
+  player.classList.remove("open");
+  frame.src = "about:blank";
+  document.body.style.overflow = "";
+  currentGame = null;
+  if(!query && activeCat==="all") render(); // refresh recent
+}
+
+document.getElementById("btnClose").onclick = closeGame;
+document.getElementById("btnReload").onclick = ()=>{ if(currentGame){ startLoad(currentGame); } };
+
+/* ---------- Search ---------- */
+const searchEl = document.getElementById("search");
+const clearBtn = document.getElementById("clearBtn");
+searchEl.addEventListener("input", ()=>{
+  query = searchEl.value.trim().toLowerCase();
+  clearBtn.style.display = query ? "block" : "none";
+  render();
+});
+clearBtn.onclick = ()=>{ searchEl.value=""; query=""; clearBtn.style.display="none"; render(); searchEl.focus(); };
+
+/* ---------- Keyboard ---------- */
+document.addEventListener("keydown", e=>{
+  if(e.key==="Escape"){ if(player.classList.contains("open")) closeGame(); }
+  else if(e.key==="/" && document.activeElement!==searchEl && !player.classList.contains("open")){
+    e.preventDefault(); searchEl.focus();
+  }
+});
+
+/* ---------- Back Button ---------- */
+if (window.Capacitor && window.Capacitor.Plugins.App) {
+  window.Capacitor.Plugins.App.addListener('backButton', () => {
+    if (player.classList.contains("open")) {
+      closeGame();
+    } else {
+      window.Capacitor.Plugins.App.exitApp();
+    }
+  });
+}
+
+/* ---------- Settings & Update Logic ---------- */
+const settingsModal = document.getElementById("settingsModal");
+const btnSettings = document.getElementById("btnSettings");
+const btnCloseSettings = document.getElementById("btnCloseSettings");
+const inputOwner = document.getElementById("githubOwner");
+const inputRepo = document.getElementById("githubRepo");
+const textAppVersion = document.getElementById("appVersionText");
+const btnCheckUpdate = document.getElementById("btnCheckUpdate");
+const updateStatusContainer = document.getElementById("updateStatusContainer");
+const updateStatusText = document.getElementById("updateStatusText");
+const updateDownloadBarContainer = document.getElementById("updateDownloadBarContainer");
+const updateDownloadBar = document.getElementById("updateDownloadBar");
+
+const LS_UPDATE = {
+  owner: "gamehub_gh_owner",
+  repo: "gamehub_gh_repo",
+};
+
+let ghOwner = localStorage.getItem(LS_UPDATE.owner) || "ssomethingg00";
+let ghRepo = localStorage.getItem(LS_UPDATE.repo) || "Game-Hub";
+
+inputOwner.value = ghOwner;
+inputRepo.value = ghRepo;
+
+btnSettings.onclick = async () => {
+  settingsModal.style.display = "flex";
+  
+  if (window.Capacitor && window.Capacitor.Plugins.UpdatePlugin) {
+    try {
+      const { versionName } = await window.Capacitor.Plugins.UpdatePlugin.getAppVersion();
+      textAppVersion.textContent = versionName;
+    } catch(e) {
+      textAppVersion.textContent = "1.0.0";
+    }
+  } else {
+    textAppVersion.textContent = "1.0.0 (Browser)";
+  }
+};
+
+btnCloseSettings.onclick = () => {
+  ghOwner = inputOwner.value.trim();
+  ghRepo = inputRepo.value.trim();
+  localStorage.setItem(LS_UPDATE.owner, ghOwner);
+  localStorage.setItem(LS_UPDATE.repo, ghRepo);
+  settingsModal.style.display = "none";
+  updateStatusContainer.style.display = "none";
+};
+
+window.addEventListener("click", (e) => {
+  if (e.target === settingsModal) {
+    btnCloseSettings.click();
+  }
+});
+
+function isNewerVersion(current, latest) {
+  const curClean = current.trim().toLowerCase().replace(/^v/, "");
+  const latClean = latest.trim().toLowerCase().replace(/^v/, "");
+  if (curClean === latClean) return false;
+
+  const curParts = curClean.split(".").map(Number);
+  const latParts = latClean.split(".").map(Number);
+  const len = Math.max(curParts.length, latParts.length);
+
+  for (let i = 0; i < len; i++) {
+    const curVal = curParts[i] || 0;
+    const latVal = latParts[i] || 0;
+    if (latVal > curVal) return true;
+    if (curVal > latVal) return false;
+  }
+  return false;
+}
+
+btnCheckUpdate.onclick = async () => {
+  const owner = inputOwner.value.trim();
+  const repo = inputRepo.value.trim();
+  
+  if (!owner || !repo) {
+    showStatus("Please enter both GitHub Owner and Repo name.", "red");
+    return;
+  }
+  
+  localStorage.setItem(LS_UPDATE.owner, owner);
+  localStorage.setItem(LS_UPDATE.repo, repo);
+  ghOwner = owner;
+  ghRepo = repo;
+  
+  showStatus("Checking GitHub releases...", "var(--mut)");
+  btnCheckUpdate.disabled = true;
+  
+  try {
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases?t=${Date.now()}`);
+    if (res.status !== 200) {
+      throw new Error(`GitHub API returned status ${res.status}`);
+    }
+    const releases = await res.json();
+    if (!releases || releases.length === 0) {
+      showStatus("No releases found on GitHub repository.", "orange");
+      return;
+    }
+    
+    let latestRelease = null;
+    let apkAsset = null;
+    
+    for (const release of releases) {
+      const assets = release.assets || [];
+      const foundApk = assets.find(a => a.name.endsWith(".apk"));
+      if (foundApk) {
+        latestRelease = release;
+        apkAsset = foundApk;
+        break;
+      }
+    }
+    
+    if (!latestRelease) {
+      showStatus("No release with an APK asset found.", "orange");
+      return;
+    }
+    
+    let currentVersion = "1.0.0";
+    if (window.Capacitor && window.Capacitor.Plugins.UpdatePlugin) {
+      const { versionName } = await window.Capacitor.Plugins.UpdatePlugin.getAppVersion();
+      currentVersion = versionName;
+    }
+    
+    const hasUpdate = isNewerVersion(currentVersion, latestRelease.tag_name);
+    if (!hasUpdate) {
+      showStatus(`App is up to date (Latest: ${latestRelease.tag_name})`, "#22c55e");
+      return;
+    }
+    
+    showStatus(`New Update Available: ${latestRelease.tag_name}<br><span style="font-size:12px; color:var(--mut); font-weight:normal;">File: ${apkAsset.name} (${(apkAsset.size / 1024 / 1024).toFixed(2)} MB)</span>`, "white");
+    
+    const btnDownload = document.createElement("button");
+    btnDownload.className = "action-btn";
+    btnDownload.textContent = "Download & Install";
+    btnDownload.onclick = () => {
+      btnDownload.remove();
+      startDownloadAndInstall(apkAsset.browser_download_url);
+    };
+    updateStatusContainer.appendChild(btnDownload);
+    
+  } catch(e) {
+    console.error(e);
+    showStatus(`Failed to fetch updates: ${e.message}`, "red");
+  } finally {
+    btnCheckUpdate.disabled = false;
+  }
+};
+
+function showStatus(text, color) {
+  updateStatusContainer.style.display = "block";
+  updateStatusText.innerHTML = text;
+  updateStatusText.style.color = color;
+  
+  const existingBtn = updateStatusContainer.querySelector(".action-btn");
+  if (existingBtn) existingBtn.remove();
+  
+  updateDownloadBarContainer.style.display = "none";
+}
+
+async function startDownloadAndInstall(apkUrl) {
+  if (!window.Capacitor || !window.Capacitor.Plugins.UpdatePlugin) {
+    showStatus("Updater is only available in Android APK mode.", "orange");
+    return;
+  }
+  
+  showStatus("Starting download...", "white");
+  updateDownloadBarContainer.style.display = "block";
+  updateDownloadBar.style.width = "0%";
+  
+  const UpdatePlugin = window.Capacitor.Plugins.UpdatePlugin;
+  
+  let progressListener = null;
+  try {
+    progressListener = await UpdatePlugin.addListener("downloadProgress", (info) => {
+      updateDownloadBar.style.width = `${info.percent}%`;
+      showStatus(`Downloading: ${info.percent}%`, "white");
+    });
+  } catch (e) {
+    console.warn("Failed to register progress listener", e);
+  }
+  
+  try {
+    const res = await UpdatePlugin.installApk({ apkUrl });
+    if (res.status === "need_permission") {
+      showStatus("Please grant 'Install Unknown Apps' permission in the settings screen that opened, then try again.", "orange");
+    } else if (res.status === "installing") {
+      showStatus("Launching installer...", "#22c55e");
+    }
+  } catch(e) {
+    showStatus(`Download/Install Failed: ${e.message}`, "red");
+  } finally {
+    if (progressListener) {
+      progressListener.remove();
+    }
+  }
+}
+
+/* ---------- Init ---------- */
+buildChips();
+render();
+</script>
+</body>
+</html>
